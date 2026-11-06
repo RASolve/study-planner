@@ -22,9 +22,6 @@ html { -webkit-text-size-adjust: 100%; }
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;700&display=swap">
 <style>
-/* 레이아웃: 종이 한 장. 왼쪽은 할 일 표, 오른쪽은 10분 단위 시간표. 폰에서는 세로로 쌓인다.
-   색: 따뜻한 종이색 바탕에 회청색 잉크선. 카테고리 색만 채도를 가진다.
-   글꼴: 본문 Noto Sans KR, 시각과 숫자는 IBM Plex Mono. */
 :root {
   --bg: #e6eaec;
   --paper: #f8f7f4;
@@ -77,7 +74,6 @@ button:disabled { cursor: default; opacity: .4; }
   padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
 
-/* 페이지 막대 */
 .topbar { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
 .strip { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: thin; }
 .pg { flex: none; border: 1px solid var(--rule); background: var(--paper); border-radius: 999px; padding: 6px 13px; font-size: 13px; white-space: nowrap; }
@@ -89,7 +85,6 @@ button:disabled { cursor: default; opacity: .4; }
 .banner { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; background: var(--paper-2); border: 1px dashed var(--rule); padding: 10px 14px; margin-bottom: 14px; font-size: 13px; }
 .banner p { margin: 0; min-width: 0; }
 
-/* 종이 */
 .paper { background: var(--paper); border: 1px solid var(--line-soft); box-shadow: var(--shadow); padding: 22px 14px 30px; }
 h1 { margin: 0 0 22px; font-size: 26px; line-height: 1.2; font-weight: 700; letter-spacing: -.01em; text-wrap: balance; }
 h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--muted); }
@@ -109,6 +104,21 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
 .dday .big { display: flex; align-items: baseline; gap: 2px; font-size: 24px; }
 .dday .big input { width: 3.4ch; border: 0; border-bottom: 1px solid var(--rule); background: transparent; font-family: var(--font-mono); font-size: 24px; padding: 0; min-width: 0; }
 .dday .lbl { width: 100%; border: 0; background: transparent; font-size: 16px; padding: 0; min-width: 0; color: var(--muted); }
+
+/* 캘린더 드롭다운 및 모듈 UI 스타일 추가 */
+.cal-wrap { position: relative; display: inline-block; margin-bottom: 12px; }
+.cal-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 500; background: var(--paper-2); border: 1px solid var(--rule); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+.cal-dropdown { position: absolute; top: calc(100% + 4px); left: 0; z-index: 50; background: var(--paper); border: 1.5px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 12px; width: 300px; }
+.cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-weight: bold; }
+.cal-header button { background: transparent; border: 1px solid var(--rule); border-radius: 6px; padding: 2px 8px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; font-size: 12px; }
+.cal-weekdays { font-weight: bold; color: var(--muted); padding-bottom: 4px; }
+.cal-day { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 50%; border: 0; background: transparent; position: relative; cursor: pointer; }
+.cal-day:hover { background: var(--paper-2); }
+.cal-day.selected { background: var(--ink); color: var(--paper); font-weight: bold; }
+.cal-day.has-planner::after { content: ""; position: absolute; bottom: 3px; width: 4px; height: 4px; background: var(--accent); border-radius: 50%; }
+.cal-day.selected.has-planner::after { background: var(--paper); }
+.cal-day.other-month { opacity: 0.3; }
 
 /* 할 일 표 */
 .tbl { border: 1.5px solid var(--line); --c-cat: 54px; --c-dur: 54px; --c-time: 72px; --c-chk: 38px; }
@@ -130,7 +140,6 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
 .dur { display: flex; align-items: center; justify-content: center; border: 0; background: transparent; padding: 6px 4px; }
 .dur span { display: block; width: 100%; border: 1px dashed var(--rule); border-radius: 8px; background: var(--paper-2); padding: 7px 2px; font-family: var(--font-mono); font-size: 12px; line-height: 1.35; text-align: center; white-space: pre-line; }
 
-/* 타임 인풋 래퍼 및 스타일 추가 (수정됨) */
 .time { display: flex; flex-direction: column; justify-content: center; align-items: center; font-family: var(--font-mono); font-size: 11.5px; line-height: 1.45; white-space: nowrap; padding: 4px 2px; }
 .time .none { color: var(--muted); }
 .time-wrap { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; min-height: 22px; }
@@ -153,7 +162,6 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
 .review label { display: block; font-size: 13px; margin-bottom: 4px; }
 .review textarea { width: 100%; min-height: 96px; border: 0; background: transparent; resize: vertical; font-size: 16px; line-height: 1.6; padding: 0; }
 
-/* 시간표 */
 .tg { border: 1.5px solid var(--line); display: grid; grid-template-columns: 44px repeat(6, minmax(0, 1fr)); gap: 1px; background: var(--rule); }
 .tg > div { background-color: var(--paper); height: 25px; }
 .tg .hh { background: var(--paper-2); display: flex; align-items: center; justify-content: center; gap: 3px; font-family: var(--font-mono); font-size: 12px; }
@@ -181,7 +189,6 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
   .tg > div { height: 24px; }
 }
 
-/* 소요시간 시트 */
 .sheet, .dlg { position: fixed; inset: 0; z-index: 50; display: flex; background: var(--scrim); color: var(--on-scrim);
   -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); overflow-y: auto;
   padding: calc(18px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) calc(18px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
@@ -209,7 +216,6 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
 .go { width: 78px; height: 78px; border-radius: 50%; border: 0; background: var(--go); color: #fff; font-size: 18px; font-weight: 500; margin-top: 2px; flex: none; }
 .hintline { font-size: 12px; opacity: .7; }
 
-/* 팝오버와 카테고리 관리 */
 .menu { position: fixed; z-index: 60; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); padding: 6px; min-width: 176px; max-height: 70vh; overflow-y: auto; }
 .opt { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 42px; border: 0; background: transparent; padding: 6px 10px; border-radius: 6px; text-align: left; font-size: 15px; }
 .opt:hover, .opt.sel { background: var(--paper-2); }
@@ -259,9 +265,22 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
 <body>
 <div class="wrap" id="app">
   <div class="topbar">
-    <div class="strip" id="strip" role="group" aria-label="페이지 목록"></div>
+    <!-- 날짜별 캘린더 모듈 인터페이스 -->
+    <div class="cal-wrap" id="calWrap">
+      <button class="cal-btn" id="calToggleBtn" type="button">📅 날짜 선택</button>
+      <div class="cal-dropdown" id="calDropdown" hidden>
+        <div class="cal-header">
+          <button type="button" id="calPrev">&lt;</button>
+          <span id="calMonthTitle"></span>
+          <button type="button" id="calNext">&gt;</button>
+        </div>
+        <div class="cal-grid cal-weekdays">
+          <div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div>
+        </div>
+        <div class="cal-grid" id="calGridDays"></div>
+      </div>
+    </div>
     <div class="actions">
-      <!-- 12/24시간제 변경 토글 버튼 추가 -->
       <button class="btn" id="formatToggle" type="button">12시간제</button>
       <button class="btn" id="newPage" type="button">새 페이지</button>
       <button class="btn" id="dupPage" type="button">이 페이지 복제</button>
@@ -395,7 +414,6 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
 (function () {
   'use strict';
 
-  /* ---------- 작은 도구들 ---------- */
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.prototype.slice.call((r || document).querySelectorAll(s));
   const uid = () => Math.random().toString(36).slice(2, 9);
@@ -415,7 +433,6 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     return n;
   }
 
-  /* 날짜와 시각 (12/24시간제 지원) */
   const WD = ['일', '월', '화', '수', '목', '금', '토'];
   const ymd = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   const parseYmd = (s) => { const a = s.split('-').map(Number); return new Date(a[0], a[1] - 1, a[2]); };
@@ -455,7 +472,6 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
   };
 
-  /* ---------- 데이터 ---------- */
   const PALETTE = ['#e5a5a0', '#e9b88a', '#e6cf8b', '#b5cf9f', '#9fcdbd', '#9dbfd9', '#a8b0dc', '#c4aedb', '#dba9c4', '#c2beb6'];
   const DEF_CATS = [
     { id: 'c-kor', name: '국어', color: PALETTE[0], count: true },
@@ -467,9 +483,10 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
   ];
   let meta = { cats: [], order: [], current: null, use24h: false };
   let pages = {};
+  let calViewDate = new Date(); // 캘린더 모듈이 보여줄 현재 연/월
+
   const page = () => pages[meta.current];
   const catOf = (t) => meta.cats.find((c) => c.id === t.cat) || meta.cats[0];
-  // 할 일에 startTime 속성 추가
   const task = (cat, text, dur, status) => ({ id: uid(), cat: cat, text: text || '', dur: dur == null ? 30 : dur, status: status || 0, startTime: null });
   const blankPage = (date) => ({ id: uid(), date: date, dday: { n: '', label: '' }, start: '09:00', goal: '', review: '', tasks: [], sample: false });
 
@@ -495,7 +512,6 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     pages[p.id] = p; meta.order = [p.id]; meta.current = p.id;
   }
 
-  /* 시각 계산: 앞 일정이 끝난 시각부터 이어서 시작하되 startTime 고정값이 있으면 갱신한다 */
   function schedule(p) {
     let t = parseHM(p.start);
     return p.tasks.map((k) => { 
@@ -506,16 +522,15 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     });
   }
 
-  /* ---------- 저장: 이 기기에 먼저, 로그인하면 계정에도 ---------- */
   const LS = 'studyplanner.v1', LS_OWNER = 'studyplanner.owner', LS_LOCAL = 'studyplanner.localmode';
   const CFG = window.PLANNER_CONFIG || {};
   const lsLoad = () => { try { const r = localStorage.getItem(LS); return r ? JSON.parse(r) : null; } catch (e) { return null; } };
-  const lsSave = () => { try { localStorage.setItem(LS, JSON.stringify({ meta: meta, pages: pages })); } catch (e) { /* 저장소가 막힌 환경 */ } };
+  const lsSave = () => { try { localStorage.setItem(LS, JSON.stringify({ meta: meta, pages: pages })); } catch (e) {} };
   const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
-  const lsSet = (k, v) => { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* 무시 */ } };
+  const lsSet = (k, v) => { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} };
   const cloudConfigured = () => !!(CFG.supabaseUrl && CFG.supabaseKey);
   const hasSavedSession = () => {
-    try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && /^sb-.*-auth-token$/.test(k)) return true; } } catch (e) { /* 무시 */ }
+    try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && /^sb-.*-auth-token$/.test(k)) return true; } } catch (e) {}
     return false;
   };
   let sb = null, session = null, syncing = false, syncAgain = false, syncTimer = null, lastSyncAt = '';
@@ -532,7 +547,6 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
   const markPage = (id) => { if (pages[id]) pages[id].u = Date.now(); queue(); };
   const markMeta = () => { meta.u = Date.now(); queue(); };
 
-  // use24h 설정 동기화 추가
   const metaRow = (userId) => ({ user_id: userId, doc_id: 'meta', data: { cats: clone(meta.cats), order: meta.order.slice(), use24h: !!meta.use24h }, deleted: false, updated_at: meta.u });
   const pageRow = (userId, p) => { const d = clone(p); delete d.u; delete d.sample; return { user_id: userId, doc_id: 'p-' + p.id, data: d, deleted: false, updated_at: p.u }; };
 
@@ -626,14 +640,12 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
       if (changed) renderAll();
     } catch (e) {
       setStatus(navigator.onLine === false ? 'offline' : 'error');
-      if (window.console) console.warn('sync failed', e);
     }
     syncing = false;
     if (syncAgain) { syncAgain = false; setTimeout(syncNow, 300); }
     return ok;
   }
 
-  /* ---------- 로그인 ---------- */
   let authSignup = false, authBusy = false;
   function authMsg(t, ok) { const m = $('#authMsg'); m.textContent = t || ''; m.className = 'auth-msg' + (ok ? ' ok' : ''); }
   function setAuthMode(signup) {
@@ -681,7 +693,7 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
   async function doLogout() {
     const ok = await syncNow();
     if (!ok) { toast('동기화가 끝나지 않아 로그아웃하지 않았어요. 연결을 확인하세요'); return; }
-    try { await sb.auth.signOut(); } catch (e) { /* 무시 */ }
+    try { await sb.auth.signOut(); } catch (e) {}
     session = null; lsSet(LS_OWNER, null);
     seed(); lsSave(); renderAll(); renderAcct(); setStatus('local'); showAuth();
   }
@@ -715,16 +727,88 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     setInterval(() => { if (!document.hidden) syncNow(); }, 60000);
   }
 
-  /* ---------- 화면: 페이지 막대 ---------- */
+  /* ---------- 캘린더 모듈 렌더링 ---------- */
+  function renderCalendar() {
+    const grid = $('#calGridDays');
+    grid.textContent = '';
+    const title = $('#calMonthTitle');
+    
+    const year = calViewDate.getFullYear();
+    const month = calViewDate.getMonth();
+    title.textContent = year + '년 ' + (month + 1) + '월';
+
+    const firstDayIndex = new Date(year, month, 1).getDay();
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    const prevLastDay = new Date(year, month, 0).getDate();
+
+    // 등록된 날짜들 셋(Set) 구성
+    const plannerDates = new Set();
+    Object.values(pages).forEach(p => { if (p.date) plannerDates.add(p.date); });
+
+    const curPage = page();
+    const curDateStr = curPage ? curPage.date : '';
+
+    // 이전 달 빈 칸
+    for (let i = firstDayIndex; i > 0; i--) {
+      const dStr = ymd(new Date(year, month - 1, prevLastDay - i + 1));
+      const b = el('button', { class: 'cal-day other-month', type: 'button', text: String(prevLastDay - i + 1) });
+      if (plannerDates.has(dStr)) b.classList.add('has-planner');
+      if (dStr === curDateStr) b.classList.add('selected');
+      b.onclick = () => selectDateFromCal(dStr);
+      grid.append(b);
+    }
+
+    // 이번 달 일자
+    for (let i = 1; i <= lastDay; i++) {
+      const dStr = ymd(new Date(year, month, i));
+      const b = el('button', { class: 'cal-day', type: 'button', text: String(i) });
+      if (plannerDates.has(dStr)) b.classList.add('has-planner');
+      if (dStr === curDateStr) b.classList.add('selected');
+      b.onclick = () => selectDateFromCal(dStr);
+      grid.append(b);
+    }
+
+    // 다음 달 빈 칸으로 채우기 (총 42칸 맞추기 등)
+    const totalCells = firstDayIndex + lastDay;
+    const nextDays = totalCells <= 35 ? 35 - totalCells : 42 - totalCells;
+    for (let i = 1; i <= nextDays; i++) {
+      const dStr = ymd(new Date(year, month + 1, i));
+      const b = el('button', { class: 'cal-day other-month', type: 'button', text: String(i) });
+      if (plannerDates.has(dStr)) b.classList.add('has-planner');
+      if (dStr === curDateStr) b.classList.add('selected');
+      b.onclick = () => selectDateFromCal(dStr);
+      grid.append(b);
+    }
+  }
+
+  function selectDateFromCal(dateStr) {
+    // 해당 날짜의 플래너가 이미 있는지 확인
+    const foundId = Object.keys(pages).find(id => pages[id].date === dateStr);
+    if (foundId) {
+      meta.current = foundId;
+    } else {
+      // 없으면 새로 생성
+      const cur = page();
+      const np = blankPage(dateStr);
+      if (cur) {
+        np.start = cur.start;
+        np.dday = { n: cur.dday.n, label: cur.dday.label };
+      }
+      pages[np.id] = np;
+      meta.order.push(np.id);
+      meta.order.sort((a, b) => (pages[a].date < pages[b].date ? -1 : 1));
+      meta.current = np.id;
+      markPage(np.id); markMeta();
+    }
+    lsSave();
+    $('#calDropdown').hidden = true;
+    renderAll();
+    toast(shortDate(dateStr) + ' 플래너로 이동했어요');
+  }
+
   function renderPages() {
-    const box = $('#strip'); box.textContent = '';
-    meta.order.forEach((id) => {
-      const b = el('button', { class: 'pg', type: 'button', 'aria-current': id === meta.current ? 'true' : 'false', text: shortDate(pages[id].date) });
-      b.onclick = () => { meta.current = id; lsSave(); renderAll(); };
-      box.append(b);
-    });
-    const cur = $('.pg[aria-current="true"]', box);
-    if (cur && cur.scrollIntoView) { try { cur.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (e) { /* 무시 */ } }
+    // 기존 가로바 대신 캘린더 모듈 정보를 업데이트
+    renderCalendar();
     $('#delPage').disabled = meta.order.length < 2;
   }
 
@@ -742,7 +826,8 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
       np.dday = { n: ddayStep(cur.dday.n, -1), label: cur.dday.label };
     }
     pages[np.id] = np;
-    meta.order.splice(meta.order.indexOf(cur.id) + 1, 0, np.id);
+    meta.order.push(np.id);
+    meta.order.sort((a, b) => (pages[a].date < pages[b].date ? -1 : 1));
     meta.current = np.id;
     markPage(np.id); markMeta(); renderAll();
     toast(mode === 'dup' ? '할 일을 그대로 복제했어요 (' + shortDate(np.date) + ')' : '새 페이지를 만들었어요 (' + shortDate(np.date) + ')');
@@ -761,7 +846,6 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     setTimeout(() => { if (btn.hasAttribute('data-armed')) { btn.removeAttribute('data-armed'); btn.textContent = btn.dataset.label; } }, 3000);
   }
 
-  /* ---------- 화면: 종이 ---------- */
   function edit() {
     const p = page();
     if (p.sample) { p.sample = false; $('#banner').hidden = true; }
@@ -777,6 +861,9 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     $('#goal').value = p.goal; $('#review').value = p.review;
     $('#ddayN').value = p.dday.n; $('#ddayL').value = p.dday.label;
     $('#banner').hidden = !p.sample;
+
+    // 캘린더 모듈이 열려있지 않더라도 현재 페이지 날짜 기준으로 뷰포커스 맞추기
+    calViewDate = parseYmd(p.date);
   }
 
   function buildRows() {
@@ -847,12 +934,11 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
         const sTime = clock(sc[i].s);
         const eTime = clock(sc[i].e);
         
-        // 투명 input 트릭을 사용하여 OS 기본 입력기는 유지하면서 표기는 통일
         const sInput = el('input', { type: 'time', class: 'time-edit' });
         sInput.value = sTime.t24;
         sInput.onchange = (e) => {
           if (e.target.value) t.startTime = e.target.value;
-          else t.startTime = null; // 값을 지우면 다시 자동계산 됨
+          else t.startTime = null;
           edit(); updateDerived();
         };
 
@@ -879,7 +965,6 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
   function autosize(ta) { ta.style.height = '0px'; ta.style.height = Math.max(56, ta.scrollHeight) + 'px'; }
   function autosizeAll() { $$('#rows .txt').forEach(autosize); }
 
-  /* 시간표: 04시부터 다음날 03시까지, 칸 하나가 10분 */
   const GRID_ORIGIN = 240;
   let cells = [];
   function buildGrid() {
@@ -943,7 +1028,6 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     renderPages(); fillPaper(); buildGrid(); buildRows(); renderLegend(); 
   }
 
-  /* ---------- 카테고리 메뉴 ---------- */
   let menuAnchor = null;
   function closeMenu() { $('#menu').hidden = true; menuAnchor = null; }
   function openCatMenu(anchor, t) {
@@ -965,7 +1049,6 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     const sel = $('.opt.sel', m) || $('.opt', m); if (sel) sel.focus();
   }
 
-  /* ---------- 카테고리 관리 ---------- */
   function openCatMgr() { renderCatMgr(); $('#catDlg').hidden = false; $('#app').inert = true; const f = $('#catList input'); if (f) f.focus(); }
   function closeCatMgr() { $('#catDlg').hidden = true; $('#app').inert = false; renderLegend(); updateDerived(); }
   function renderCatMgr() {
@@ -994,7 +1077,6 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     });
   }
 
-  /* ---------- 소요시간 시트 ---------- */
   let sheetId = null;
   const sheetTask = () => page().tasks.find((t) => t.id === sheetId);
   function openSheet(id) { sheetId = id; $('#sheet').hidden = false; $('#app').inert = true; updateSheet(); $('#pill').focus(); }
@@ -1007,7 +1089,7 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     v = Math.max(0, Math.min(720, Math.round(v / 5) * 5));
     if (v === t.dur) return;
     t.dur = v; edit(); updateSheet(); updateDerived();
-    try { if (navigator.vibrate) navigator.vibrate(4); } catch (e) { /* 무시 */ }
+    try { if (navigator.vibrate) navigator.vibrate(4); } catch (e) {}
   }
   function updateSheet() {
     const p = page(), i = p.tasks.findIndex((t) => t.id === sheetId); if (i < 0) return;
@@ -1029,7 +1111,7 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
   function bindSheet() {
     const pill = $('#pill'); let drag = false;
     const fromY = (y) => { const r = pill.getBoundingClientRect(); setDur((1 - (y - r.top) / r.height) * 240); };
-    pill.addEventListener('pointerdown', (e) => { drag = true; try { pill.setPointerCapture(e.pointerId); } catch (x) { /* 무시 */ } fromY(e.clientY); e.preventDefault(); });
+    pill.addEventListener('pointerdown', (e) => { drag = true; try { pill.setPointerCapture(e.pointerId); } catch (x) {} fromY(e.clientY); e.preventDefault(); });
     pill.addEventListener('pointermove', (e) => { if (drag) fromY(e.clientY); });
     const end = () => { drag = false; };
     pill.addEventListener('pointerup', end); pill.addEventListener('pointercancel', end);
@@ -1049,7 +1131,6 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     $('#sheet').addEventListener('pointerdown', (e) => { if (e.target === $('#sheet')) closeSheet(); });
   }
 
-  /* ---------- 알림 ---------- */
   let toastTimer = null;
   function toast(msg, label, fn) {
     const t = $('#toast'); t.textContent = msg;
@@ -1058,8 +1139,28 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, label ? 6000 : 2600);
   }
 
-  /* ---------- 입력 연결 ---------- */
   function bindPaper() {
+    // 캘린더 드롭다운 토글 및 조작 바인딩
+    $('#calToggleBtn').onclick = () => {
+      const dd = $('#calDropdown');
+      dd.hidden = !dd.hidden;
+      if (!dd.hidden) renderCalendar();
+    };
+    $('#calPrev').onclick = () => {
+      calViewDate.setMonth(calViewDate.getMonth() - 1);
+      renderCalendar();
+    };
+    $('#calNext').onclick = () => {
+      calViewDate.setMonth(calViewDate.getMonth() + 1);
+      renderCalendar();
+    };
+    document.addEventListener('pointerdown', (e) => {
+      const cw = $('#calWrap');
+      if (cw && !cw.contains(e.target)) {
+        $('#calDropdown').hidden = true;
+      }
+    });
+
     $('#formatToggle').onclick = () => {
       meta.use24h = !meta.use24h;
       markMeta();
@@ -1097,7 +1198,6 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(autosizeAll);
   }
 
-  /* ---------- 백업 ---------- */
   function cleanPage(p) {
     if (!p || typeof p !== 'object' || typeof p.id !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(p.date || '')) return null;
     const out = blankPage(p.date); out.id = p.id;
@@ -1150,12 +1250,11 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
   }
   function registerSW() {
     if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
-      window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => { /* 오프라인 기능만 빠진다 */ }); });
+      window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
     }
-    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => { /* 무시 */ });
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
   }
 
-  /* ---------- 시작 ---------- */
   const saved = lsLoad();
   if (saved && saved.meta && saved.meta.order && saved.meta.order.length && saved.pages) {
     meta = saved.meta; pages = saved.pages;
