@@ -136,6 +136,9 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
 .row[data-s="1"] .chk i { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 .row[data-s="2"] .txt, .row[data-s="3"] .txt, .row[data-s="2"] .time, .row[data-s="3"] .time { opacity: .5; }
 .row[data-s="3"] .txt { text-decoration: line-through; }
+.tx { display: flex; flex-direction: column; min-width: 0; }
+.rm { display: none; margin: 0 8px 8px; height: 32px; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper); color: var(--danger); font-size: 13px; padding: 0; }
+.row.editing .rm { display: block; }
 .addrow { display: block; width: 100%; border: 0; background: transparent; color: var(--muted); padding: 15px 14px; text-align: left; font-size: 14px; }
 .addrow:hover { background: var(--paper-2); }
 
@@ -232,6 +235,14 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
 .auth .primary { border: 0; border-radius: 10px; min-height: 50px; background: var(--ink); color: var(--paper); font-size: 16px; font-weight: 500; margin-top: 6px; }
 .auth .primary:disabled { opacity: .6; }
 .auth .linkbtn { border: 0; background: transparent; color: var(--muted); text-decoration: underline; min-height: 42px; font-size: 14px; }
+.toast button { border: 0; background: transparent; color: inherit; text-decoration: underline; margin-left: 12px; font-size: 13px; min-height: 28px; padding: 0 4px; }
+@media (max-height: 720px) {
+  .sh-in { gap: 8px; }
+  .sh-val { font-size: 30px; }
+  .pill { --ph: clamp(120px, 24vh, 200px); }
+  .go { width: 64px; height: 64px; font-size: 16px; }
+  .sh-steps button, .sh-presets button { min-height: 36px; padding: 6px 12px; }
+}
 .toast { position: fixed; z-index: 70; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--paper); border-radius: 999px; padding: 9px 16px; font-size: 13px; max-width: calc(100% - 32px); }
 @media (prefers-reduced-motion: no-preference) {
   .pill-fill { transition: height .06s linear; }
@@ -770,7 +781,15 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     const time = el('div', { class: 'time' });
     const chk = el('button', { class: 'chk', type: 'button' }, el('i'));
     chk.onclick = () => { t.status = (t.status + 1) % 4; edit(); updateDerived(); };
-    return el('div', { class: 'row trow', 'data-id': t.id }, cat, txt, dur, time, chk);
+    const rm = el('button', { class: 'rm', type: 'button', 'aria-label': '이 할 일 삭제', text: '이 할 일 삭제' });
+    rm.onclick = () => removeTask(t.id);
+    const wrap = el('div', { class: 'tx' }, txt, rm);
+    const row = el('div', { class: 'row trow', 'data-id': t.id }, cat, wrap, dur, time, chk);
+    txt.addEventListener('focus', () => { row.classList.add('editing'); autosize(txt); });
+    txt.addEventListener('blur', () => setTimeout(() => {
+      if (document.activeElement !== txt && document.activeElement !== rm) { row.classList.remove('editing'); autosize(txt); }
+    }, 300));
+    return row;
   }
   function addTask(index) {
     const p = page(), prev = p.tasks[index - 1] || p.tasks[p.tasks.length - 1];
@@ -778,6 +797,17 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     p.tasks.splice(index, 0, t);
     edit(); buildRows();
     const ta = $('.row[data-id="' + t.id + '"] .txt'); if (ta) ta.focus();
+  }
+  function removeTask(id) {
+    const p = page(), i = p.tasks.findIndex((t) => t.id === id);
+    if (i < 0) return;
+    const removed = p.tasks.splice(i, 1)[0], pid = p.id;
+    edit(); buildRows();
+    toast('할 일을 삭제했어요', '되돌리기', () => {
+      const q = pages[pid]; if (!q) return;
+      q.tasks.splice(Math.min(i, q.tasks.length), 0, removed);
+      if (meta.current === pid) { edit(); buildRows(); } else markPage(pid);
+    });
   }
   const STATUS = [['', '미체크'], ['✓', '완료'], ['→', '미뤄짐'], ['✕', '취소']];
 
@@ -964,19 +994,17 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     $('#shDone').onclick = closeSheet;
     $('#shUp').onclick = () => moveTask(-1);
     $('#shDown').onclick = () => moveTask(1);
-    const del = $('#shDel');
-    del.onclick = () => arm(del, '한 번 더 눌러 삭제', () => {
-      const p = page(); p.tasks = p.tasks.filter((t) => t.id !== sheetId);
-      edit(); sheetId = null; $('#sheet').hidden = true; $('#app').inert = false; buildRows();
-    });
+    $('#shDel').onclick = () => { const id = sheetId; sheetId = null; $('#sheet').hidden = true; $('#app').inert = false; removeTask(id); };
     $('#sheet').addEventListener('pointerdown', (e) => { if (e.target === $('#sheet')) closeSheet(); });
   }
 
   /* ---------- 알림 ---------- */
   let toastTimer = null;
-  function toast(msg) {
-    const t = $('#toast'); t.textContent = msg; t.hidden = false;
-    clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2600);
+  function toast(msg, label, fn) {
+    const t = $('#toast'); t.textContent = msg;
+    if (label && fn) { const b = el('button', { type: 'button', text: label }); b.onclick = () => { t.hidden = true; fn(); }; t.append(b); }
+    t.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, label ? 6000 : 2600);
   }
 
   /* ---------- 입력 연결 ---------- */

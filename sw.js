@@ -1,5 +1,5 @@
 // 앱 파일을 기기에 보관해 오프라인에서도 열리게 한다. 파일을 고쳐 올릴 때마다 CACHE 숫자를 올린다.
-const CACHE = 'studyplanner-v2';
+const CACHE = 'studyplanner-v3';
 const SHELL = ['./', './index.html', './config.js', './supabase.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
