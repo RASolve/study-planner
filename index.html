@@ -551,10 +551,41 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
   const pageRow = (userId, p) => { const d = clone(p); delete d.u; delete d.sample; return { user_id: userId, doc_id: 'p-' + p.id, data: d, deleted: false, updated_at: p.u }; };
 
   function reconcile() {
+    // 1. 날짜별로 가장 최신 페이지 하나만 남기기 (중복 방지)
+    const dateMap = {};
+    Object.keys(pages).forEach(id => {
+      const p = pages[id];
+      if (!p.date) return;
+      if (!dateMap[p.date] || (p.u || 0) > (pages[dateMap[p.date]].u || 0)) {
+        dateMap[p.date] = id;
+      }
+    });
+
+    // 중복된(선택되지 않은) 페이지 삭제
+    Object.keys(pages).forEach(id => {
+      const p = pages[id];
+      if (p.date && dateMap[p.date] !== id && !p.sample) {
+        delete pages[id];
+      }
+    });
+
+    // 2. meta.order 정제 (존재하는 페이지 + 고유 ID)
     meta.order = meta.order.filter((id, i, a) => pages[id] && a.indexOf(id) === i);
-    Object.keys(pages).filter((id) => meta.order.indexOf(id) < 0)
-      .sort((a, b) => (pages[a].date < pages[b].date ? -1 : 1)).forEach((id) => meta.order.push(id));
-    if (!meta.order.length) { const p = blankPage(ymd(new Date())); pages[p.id] = p; meta.order.push(p.id); }
+
+    // 3. 누락된 페이지 order에 추가
+    Object.keys(pages).forEach(id => {
+      if (meta.order.indexOf(id) < 0) meta.order.push(id);
+    });
+
+    // 4. 날짜순 정렬
+    meta.order.sort((a, b) => (pages[a].date < pages[b].date ? -1 : 1));
+
+    // 5. 빈 상태 처리
+    if (!meta.order.length) {
+      const p = blankPage(ymd(new Date()));
+      pages[p.id] = p;
+      meta.order.push(p.id);
+    }
     if (!pages[meta.current]) meta.current = meta.order[0];
   }
 
@@ -782,35 +813,36 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
   }
 
   function selectDateFromCal(dateStr) {
-    // 해당 날짜의 플래너가 이미 있는지 확인
+    // 1. 날짜로 검색 (가장 확실한 방법)
     const foundId = Object.keys(pages).find(id => pages[id].date === dateStr);
+
     if (foundId) {
       meta.current = foundId;
+      toast(shortDate(dateStr) + ' 플래너로 이동했어요');
     } else {
-      // 없으면 새로 생성
+      // 2. 없으면 생성
       const cur = page();
       const np = blankPage(dateStr);
       if (cur) {
         np.start = cur.start;
-        // 날짜 차이만큼 D-day 자동 계산
         const d1 = parseYmd(cur.date), d2 = parseYmd(dateStr);
         const diff = Math.round((d2 - d1) / 864e5);
         np.dday = { n: ddayStep(cur.dday.n, -diff), label: cur.dday.label };
       }
       pages[np.id] = np;
-      meta.order.push(np.id);
-      meta.order.sort((a, b) => (pages[a].date < pages[b].date ? -1 : 1));
       meta.current = np.id;
-      markPage(np.id); markMeta();
+      markPage(np.id);
+      markMeta();
+      reconcile(); // 순서 및 중복 즉시 정리
+      toast(shortDate(dateStr) + ' 새 플래너를 만들었어요');
     }
+
     lsSave();
     $('#calDropdown').hidden = true;
     renderAll();
-    toast(shortDate(dateStr) + ' 플래너로 이동했어요');
   }
 
   function renderPages() {
-    // 기존 가로바 대신 캘린더 모듈 정보를 업데이트
     renderCalendar();
     $('#delPage').disabled = meta.order.length < 2;
   }
@@ -820,15 +852,17 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     const cur = page();
     const nextDate = addDays(cur.date, 1);
 
-    // 다음 날짜의 페이지가 이미 있는지 확인
+    // 1. 중복 날짜 체크
     const foundId = Object.keys(pages).find(id => pages[id].date === nextDate);
+
     if (foundId && mode !== 'dup') {
       meta.current = foundId;
       renderAll();
-      toast(shortDate(nextDate) + ' 플래너로 이동했어요');
+      toast(shortDate(nextDate) + ' 이미 있는 플래너로 이동했어요');
       return;
     }
 
+    // 2. 생성 또는 복제
     let np;
     if (mode === 'dup') {
       np = clone(cur); np.id = uid(); np.date = nextDate;
@@ -840,11 +874,14 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
       np.start = cur.start;
       np.dday = { n: ddayStep(cur.dday.n, -1), label: cur.dday.label };
     }
+
     pages[np.id] = np;
-    meta.order.push(np.id);
-    meta.order.sort((a, b) => (pages[a].date < pages[b].date ? -1 : 1));
     meta.current = np.id;
-    markPage(np.id); markMeta(); renderAll();
+    markPage(np.id);
+    markMeta();
+    reconcile(); // 즉시 정리
+    lsSave();
+    renderAll();
     toast(mode === 'dup' ? '할 일을 그대로 복제했어요 (' + shortDate(np.date) + ')' : '새 페이지를 만들었어요 (' + shortDate(np.date) + ')');
   }
   function delPage() {
