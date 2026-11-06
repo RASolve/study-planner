@@ -10,8 +10,8 @@
 <meta name="apple-mobile-web-app-title" content="플래너">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
 <title>스터디플래너</title>
 <style>
 :root { color-scheme: light; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
@@ -218,6 +218,20 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
 .panel .foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 14px; }
 .backup { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 16px; font-size: 12px; color: var(--muted); }
 .backup span { flex-basis: 100%; }
+.acct { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.acct span { color: var(--ink); font-size: 13px; overflow-wrap: anywhere; }
+.auth { position: fixed; inset: 0; z-index: 80; display: flex; overflow-y: auto; background: var(--bg);
+  padding: calc(24px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) calc(24px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.auth-card { margin: auto; width: 100%; max-width: 380px; background: var(--paper); border: 1px solid var(--line-soft); box-shadow: var(--shadow); padding: 30px 22px 20px; display: flex; flex-direction: column; gap: 6px; }
+.auth-card h2 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -.01em; }
+.auth-card .sub { margin: 0 0 14px; color: var(--muted); font-size: 14px; }
+.auth-card label { font-size: 13px; margin-top: 8px; }
+.auth-card input { height: 48px; border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); padding: 0 12px; font-size: 16px; width: 100%; min-width: 0; }
+.auth-msg { min-height: 20px; margin-top: 4px; font-size: 13px; color: var(--danger); }
+.auth-msg.ok { color: var(--ink); }
+.auth .primary { border: 0; border-radius: 10px; min-height: 50px; background: var(--ink); color: var(--paper); font-size: 16px; font-weight: 500; margin-top: 6px; }
+.auth .primary:disabled { opacity: .6; }
+.auth .linkbtn { border: 0; background: transparent; color: var(--muted); text-decoration: underline; min-height: 42px; font-size: 14px; }
 .toast { position: fixed; z-index: 70; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--paper); border-radius: 999px; padding: 9px 16px; font-size: 13px; max-width: calc(100% - 32px); }
 @media (prefers-reduced-motion: no-preference) {
   .pill-fill { transition: height .06s linear; }
@@ -280,7 +294,13 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
   </main>
 
   <footer class="backup">
-    <span>데이터는 이 기기에만 저장돼요. 가끔 백업해 두세요.</span>
+    <div class="acct">
+      <span id="acctText"></span>
+      <button class="btn" id="syncBtn" type="button" hidden>지금 동기화</button>
+      <button class="btn" id="logoutBtn" type="button" hidden>로그아웃</button>
+      <button class="btn" id="loginBtn" type="button" hidden>로그인</button>
+    </div>
+    <span>일정은 이 기기에 먼저 저장돼요. 파일로 따로 보관하고 싶을 때 백업하세요.</span>
     <button class="btn" id="exportBtn" type="button">백업 저장</button>
     <button class="btn" id="importBtn" type="button">백업 불러오기</button>
     <input type="file" id="importFile" accept=".json,application/json" hidden>
@@ -334,6 +354,23 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
 <div class="menu" id="menu" hidden role="listbox" aria-label="카테고리 선택"></div>
 <div class="toast" id="toast" hidden role="status"></div>
 
+<div class="auth" id="auth" hidden role="dialog" aria-modal="true" aria-labelledby="authTitle">
+  <form class="auth-card" id="authForm" novalidate>
+    <h2 id="authTitle">스터디플래너</h2>
+    <p class="sub">로그인하면 iPhone과 iPad에서 같은 일정을 볼 수 있어요.</p>
+    <label for="authId">아이디 (이메일)</label>
+    <input id="authId" type="email" autocomplete="username" inputmode="email" autocapitalize="none" autocorrect="off" spellcheck="false">
+    <label for="authPw">비밀번호 (6자 이상)</label>
+    <input id="authPw" type="password" autocomplete="current-password">
+    <div class="auth-msg" id="authMsg" role="alert"></div>
+    <button class="primary" id="authSubmit" type="submit">로그인</button>
+    <button class="linkbtn" id="authToggle" type="button">처음이에요 · 회원가입</button>
+    <button class="linkbtn" id="authLocal" type="button">로그인 없이 이 기기에서만 쓰기</button>
+  </form>
+</div>
+
+<script src="config.js"></script>
+<script src="supabase.js"></script>
 <script>
 (function () {
   'use strict';
@@ -434,50 +471,226 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     return p.tasks.map((k) => { const s = t, e = t + (k.dur || 0); t = e; return { s: s, e: e }; });
   }
 
-  /* ---------- 저장 (계정 db + 이 기기 보관) ---------- */
-  const LS = 'studyplanner.v1';
+  /* ---------- 저장: 이 기기에 먼저, 로그인하면 계정에도 ---------- */
+  const LS = 'studyplanner.v1', LS_OWNER = 'studyplanner.owner', LS_LOCAL = 'studyplanner.localmode';
+  const CFG = window.PLANNER_CONFIG || {};
   const lsLoad = () => { try { const r = localStorage.getItem(LS); return r ? JSON.parse(r) : null; } catch (e) { return null; } };
   const lsSave = () => { try { localStorage.setItem(LS, JSON.stringify({ meta: meta, pages: pages })); } catch (e) { /* 저장소가 막힌 환경 */ } };
-  let remote = null;
-  const dirty = { meta: false, pages: new Set(), del: new Set() };
-  let flushTimer = null, flushing = false;
-  const isDirty = () => dirty.meta || dirty.pages.size > 0 || dirty.del.size > 0;
+  const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+  const lsSet = (k, v) => { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* 무시 */ } };
+  const cloudConfigured = () => !!(CFG.supabaseUrl && CFG.supabaseKey);
+  const hasSavedSession = () => {
+    try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && /^sb-.*-auth-token$/.test(k)) return true; } } catch (e) { /* 무시 */ }
+    return false;
+  };
+  let sb = null, session = null, syncing = false, syncAgain = false, syncTimer = null, lastSyncAt = '';
 
   function setStatus(s) {
-    const map = { saving: '저장 중…', synced: '저장됨 · 계정에 동기화', local: '이 기기에 저장됨', error: '저장하지 못했어요', loading: '불러오는 중' };
+    const map = { local: '이 기기에 저장됨', saving: '저장 중…', syncing: '동기화 중…', synced: '동기화됨 ' + lastSyncAt, offline: '오프라인 · 이 기기에 저장됨', error: '동기화하지 못했어요 · 이 기기에는 저장됨' };
     $('#saveState').textContent = map[s] || '';
   }
-  function queue() { lsSave(); setStatus('saving'); clearTimeout(flushTimer); flushTimer = setTimeout(flush, 700); }
-  const markPage = (id) => { dirty.pages.add(id); queue(); };
-  const markMeta = () => { dirty.meta = true; queue(); };
-
-  async function flush() {
-    if (flushing) { flushTimer = setTimeout(flush, 300); return; }
-    flushing = true;
-    try {
-      if (remote) {
-        if (dirty.meta) { dirty.meta = false; await remote.coll.doc('meta').set(clone(meta)); }
-        for (const id of Array.from(dirty.pages)) {
-          dirty.pages.delete(id);
-          if (pages[id]) await remote.coll.doc('p-' + id).set(clone(pages[id]));
-        }
-        for (const id of Array.from(dirty.del)) { dirty.del.delete(id); await remote.coll.doc('p-' + id).delete(); }
-      } else { dirty.meta = false; dirty.pages.clear(); dirty.del.clear(); }
-      setStatus(remote ? 'synced' : 'local');
-    } catch (e) {
-      dirty.meta = true; Object.keys(pages).forEach((id) => dirty.pages.add(id));
-      setStatus('error');
-    }
-    flushing = false;
+  function queue() {
+    lsSave();
+    if (!session) { setStatus('local'); return; }
+    setStatus('saving'); clearTimeout(syncTimer); syncTimer = setTimeout(syncNow, 1500);
   }
-  function pushAll() { dirty.meta = true; Object.keys(pages).forEach((id) => dirty.pages.add(id)); queue(); }
+  const markPage = (id) => { if (pages[id]) pages[id].u = Date.now(); queue(); };
+  const markMeta = () => { meta.u = Date.now(); queue(); };
+
+  const metaRow = (userId) => ({ user_id: userId, doc_id: 'meta', data: { cats: clone(meta.cats), order: meta.order.slice() }, deleted: false, updated_at: meta.u });
+  const pageRow = (userId, p) => { const d = clone(p); delete d.u; delete d.sample; return { user_id: userId, doc_id: 'p-' + p.id, data: d, deleted: false, updated_at: p.u }; };
+
+  function reconcile() {
+    meta.order = meta.order.filter((id, i, a) => pages[id] && a.indexOf(id) === i);
+    Object.keys(pages).filter((id) => meta.order.indexOf(id) < 0)
+      .sort((a, b) => (pages[a].date < pages[b].date ? -1 : 1)).forEach((id) => meta.order.push(id));
+    if (!meta.order.length) { const p = blankPage(ymd(new Date())); pages[p.id] = p; meta.order.push(p.id); }
+    if (!pages[meta.current]) meta.current = meta.order[0];
+  }
+
+  /* 페이지마다 마지막에 고친 쪽이 이긴다. 서버 목록과 비교해 새 것만 주고받는다 */
+  async function syncNow() {
+    if (!sb || !session) return false;
+    if (syncing) { syncAgain = true; return false; }
+    if (navigator.onLine === false) { setStatus('offline'); return false; }
+    syncing = true; clearTimeout(syncTimer); setStatus('syncing');
+    let ok = false, changed = false;
+    try {
+      const userId = session.user.id;
+      meta.tomb = meta.tomb || {};
+      const r1 = await sb.from('planner_docs').select('doc_id,updated_at,deleted');
+      if (r1.error) throw r1.error;
+      const remote = {};
+      (r1.data || []).forEach((r) => { remote[r.doc_id] = r; });
+      const hasRemotePages = Object.keys(remote).some((k) => k.slice(0, 2) === 'p-' && !remote[k].deleted);
+      const push = [], pull = [], seen = {};
+
+      // 카테고리와 페이지 순서
+      seen.meta = meta.u || 0;
+      if (!remote.meta) { if (!meta.u) meta.u = Date.now(); push.push(metaRow(userId)); }
+      else if (remote.meta.updated_at < seen.meta) push.push(metaRow(userId));
+      else if (remote.meta.updated_at > seen.meta) pull.push('meta');
+
+      // 이 기기에 있는 페이지
+      Object.keys(pages).forEach((id) => {
+        const p = pages[id], key = 'p-' + id, r = remote[key];
+        if (p.sample) return;
+        if (!p.u) p.u = Date.now();
+        seen[key] = p.u;
+        if (!r || r.updated_at < p.u) push.push(pageRow(userId, p));
+        else if (r.updated_at > p.u) pull.push(key);
+      });
+      // 서버에만 있는 페이지, 그리고 이 기기에서 지운 페이지
+      Object.keys(remote).forEach((key) => {
+        if (key.slice(0, 2) !== 'p-') return;
+        const id = key.slice(2), r = remote[key];
+        if (pages[id]) return;
+        const tomb = meta.tomb[id];
+        if (tomb) {
+          if (r.updated_at > tomb) pull.push(key);
+          else if (!r.deleted) push.push({ user_id: userId, doc_id: key, data: null, deleted: true, updated_at: tomb });
+          else delete meta.tomb[id];
+        } else if (!r.deleted) pull.push(key);
+      });
+      Object.keys(meta.tomb).forEach((id) => {
+        if (!remote['p-' + id]) push.push({ user_id: userId, doc_id: 'p-' + id, data: null, deleted: true, updated_at: meta.tomb[id] });
+      });
+
+      // 받기
+      const rows = [];
+      for (let i = 0; i < pull.length; i += 40) {
+        const r2 = await sb.from('planner_docs').select('doc_id,data,deleted,updated_at').in('doc_id', pull.slice(i, i + 40));
+        if (r2.error) throw r2.error;
+        (r2.data || []).forEach((x) => rows.push(x));
+      }
+      rows.forEach((r) => {
+        if (r.doc_id === 'meta') {
+          if ((meta.u || 0) !== seen.meta) return; // 받는 사이 이 기기에서 고쳤다
+          if (r.data) {
+            if (Array.isArray(r.data.cats) && r.data.cats.length) meta.cats = r.data.cats;
+            if (Array.isArray(r.data.order)) meta.order = r.data.order;
+          }
+          meta.u = r.updated_at; changed = true;
+        } else {
+          const id = r.doc_id.slice(2), cur = pages[id];
+          if (cur && (cur.u || 0) !== seen[r.doc_id]) return;
+          if (r.deleted) { delete pages[id]; delete meta.tomb[id]; changed = true; }
+          else { const p = cleanPage(r.data); if (p) { p.u = r.updated_at; pages[id] = p; delete meta.tomb[id]; changed = true; } }
+        }
+      });
+
+      // 보내기
+      for (let i = 0; i < push.length; i += 40) {
+        const r3 = await sb.from('planner_docs').upsert(push.slice(i, i + 40), { onConflict: 'user_id,doc_id' });
+        if (r3.error) throw r3.error;
+      }
+      push.forEach((row) => { if (row.deleted) delete meta.tomb[row.doc_id.slice(2)]; });
+
+      // 계정에 일정이 있으면 처음 들어 있던 예시 페이지는 치운다
+      if (hasRemotePages) Object.keys(pages).forEach((id) => { if (pages[id].sample) { delete pages[id]; changed = true; } });
+      reconcile();
+      lsSave();
+      lastSyncAt = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+      setStatus('synced');
+      ok = true;
+      if (changed) renderAll();
+    } catch (e) {
+      setStatus(navigator.onLine === false ? 'offline' : 'error');
+      if (window.console) console.warn('sync failed', e);
+    }
+    syncing = false;
+    if (syncAgain) { syncAgain = false; setTimeout(syncNow, 300); }
+    return ok;
+  }
+
+  /* ---------- 로그인 ---------- */
+  let authSignup = false, authBusy = false;
+  function authMsg(t, ok) { const m = $('#authMsg'); m.textContent = t || ''; m.className = 'auth-msg' + (ok ? ' ok' : ''); }
+  function setAuthMode(signup) {
+    authSignup = signup;
+    $('#authSubmit').textContent = signup ? '가입하기' : '로그인';
+    $('#authToggle').textContent = signup ? '이미 계정이 있어요 · 로그인' : '처음이에요 · 회원가입';
+    $('#authPw').setAttribute('autocomplete', signup ? 'new-password' : 'current-password');
+    authMsg('');
+  }
+  function showAuth() { $('#auth').hidden = false; $('#app').inert = true; setAuthMode(false); }
+  function hideAuth() { $('#auth').hidden = true; $('#app').inert = false; }
+  function mapErr(e) {
+    const m = String((e && e.message) || e || '');
+    if (/Invalid login credentials/i.test(m)) return '아이디 또는 비밀번호가 맞지 않아요';
+    if (/already registered|already been registered/i.test(m)) return '이미 가입된 아이디예요. 로그인해 보세요';
+    if (/not confirmed/i.test(m)) return '메일 확인이 아직 안 됐어요. 받은 메일의 링크를 눌러 주세요';
+    if (/valid email|invalid.*email/i.test(m)) return '아이디는 이메일 형식으로 입력하세요';
+    if (/at least 6|Password should be/i.test(m)) return '비밀번호는 6자 이상이어야 해요';
+    if (/rate limit|too many/i.test(m)) return '시도가 너무 많아요. 잠시 뒤에 다시 해 보세요';
+    if (/fetch|network|Failed/i.test(m) || navigator.onLine === false) return '인터넷 연결을 확인하세요';
+    return '실패했어요: ' + m;
+  }
+  async function onAuthSubmit(e) {
+    e.preventDefault();
+    if (authBusy) return;
+    if (!sb) { authMsg('로그인 기능을 불러오지 못했어요. 인터넷 연결을 확인하세요'); return; }
+    const email = $('#authId').value.trim(), pw = $('#authPw').value;
+    if (!email || !pw) { authMsg('아이디와 비밀번호를 입력하세요'); return; }
+    if (authSignup && pw.length < 6) { authMsg('비밀번호는 6자 이상이어야 해요'); return; }
+    authBusy = true; $('#authSubmit').disabled = true; authMsg('');
+    try {
+      const r = authSignup ? await sb.auth.signUp({ email: email, password: pw }) : await sb.auth.signInWithPassword({ email: email, password: pw });
+      if (r.error) throw r.error;
+      if (r.data && r.data.session) { session = r.data.session; $('#authPw').value = ''; startSession(); }
+      else { setAuthMode(false); authMsg('확인 메일을 보냈어요. 메일의 링크를 누른 뒤 로그인하세요', true); }
+    } catch (err) { authMsg(mapErr(err)); }
+    authBusy = false; $('#authSubmit').disabled = false;
+  }
+  function startSession() {
+    const me = session.user.id, owner = lsGet(LS_OWNER);
+    if (owner && owner !== me) { seed(); lsSave(); } // 다른 계정이 쓰던 일정은 섞지 않는다
+    lsSet(LS_OWNER, me); lsSet(LS_LOCAL, null);
+    hideAuth(); renderAll(); renderAcct(); syncNow();
+  }
+  async function doLogout() {
+    const ok = await syncNow();
+    if (!ok) { toast('동기화가 끝나지 않아 로그아웃하지 않았어요. 연결을 확인하세요'); return; }
+    try { await sb.auth.signOut(); } catch (e) { /* 무시 */ }
+    session = null; lsSet(LS_OWNER, null);
+    seed(); lsSave(); renderAll(); renderAcct(); setStatus('local'); showAuth();
+  }
+  function renderAcct() {
+    const t = $('#acctText'), on = !!session;
+    $('#syncBtn').hidden = !on; $('#logoutBtn').hidden = !on;
+    $('#loginBtn').hidden = on || !cloudConfigured() || !sb;
+    if (!cloudConfigured()) t.textContent = '계정 동기화는 아직 설정되지 않았어요 (README 참고)';
+    else if (on) t.textContent = '로그인: ' + (session.user.email || '');
+    else t.textContent = '로그인하지 않았어요. 일정은 이 기기에만 저장돼요';
+  }
+  async function initAuth() {
+    renderAcct();
+    if (!cloudConfigured()) { setStatus('local'); return; }
+    if (!(window.supabase && window.supabase.createClient)) { setStatus('local'); return; }
+    sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
+    try { const r = await sb.auth.getSession(); session = (r.data && r.data.session) || null; } catch (e) { session = null; }
+    if (session) startSession();
+    else { renderAcct(); setStatus('local'); if (lsGet(LS_LOCAL) !== '1') showAuth(); }
+  }
+  function bindAccount() {
+    $('#authForm').addEventListener('submit', onAuthSubmit);
+    $('#authToggle').onclick = () => setAuthMode(!authSignup);
+    $('#authLocal').onclick = () => { lsSet(LS_LOCAL, '1'); hideAuth(); setStatus('local'); renderAcct(); };
+    $('#loginBtn').onclick = showAuth;
+    $('#syncBtn').onclick = async () => { const ok = await syncNow(); toast(ok ? '동기화했어요' : '동기화하지 못했어요'); };
+    const lo = $('#logoutBtn'); lo.onclick = () => arm(lo, '한 번 더: 이 기기 데이터 삭제', doLogout);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) syncNow(); });
+    window.addEventListener('online', () => syncNow());
+    window.addEventListener('offline', () => { if (session) setStatus('offline'); });
+    setInterval(() => { if (!document.hidden) syncNow(); }, 60000);
+  }
 
   /* ---------- 화면: 페이지 막대 ---------- */
   function renderPages() {
     const box = $('#strip'); box.textContent = '';
     meta.order.forEach((id) => {
       const b = el('button', { class: 'pg', type: 'button', 'aria-current': id === meta.current ? 'true' : 'false', text: shortDate(pages[id].date) });
-      b.onclick = () => { meta.current = id; markMeta(); renderAll(); };
+      b.onclick = () => { meta.current = id; lsSave(); renderAll(); };
       box.append(b);
     });
     const cur = $('.pg[aria-current="true"]', box);
@@ -508,7 +721,7 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     if (meta.order.length < 2) return;
     const id = meta.current, i = meta.order.indexOf(id);
     meta.order.splice(i, 1); delete pages[id];
-    dirty.pages.delete(id); dirty.del.add(id);
+    meta.tomb = meta.tomb || {}; meta.tomb[id] = Date.now();
     meta.current = meta.order[Math.max(0, i - 1)];
     markMeta(); renderAll(); toast('페이지를 삭제했어요');
   }
@@ -864,7 +1077,9 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     if (!meta.order.length) seed();
     else if (!pages[meta.current]) meta.current = meta.order[0];
   } else seed();
-  buildGrid(); bindPaper(); bindSheet(); bindBackup(); renderAll(); setStatus('local'); registerSW();
+  buildGrid(); bindPaper(); bindSheet(); bindBackup(); bindAccount(); renderAll(); setStatus('local'); registerSW();
+  if (cloudConfigured() && !hasSavedSession() && lsGet(LS_LOCAL) !== '1') showAuth();
+  initAuth();
 })();
 </script>
 </body>
