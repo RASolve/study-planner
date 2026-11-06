@@ -792,7 +792,10 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
       const np = blankPage(dateStr);
       if (cur) {
         np.start = cur.start;
-        np.dday = { n: cur.dday.n, label: cur.dday.label };
+        // 날짜 차이만큼 D-day 자동 계산
+        const d1 = parseYmd(cur.date), d2 = parseYmd(dateStr);
+        const diff = Math.round((d2 - d1) / 864e5);
+        np.dday = { n: ddayStep(cur.dday.n, -diff), label: cur.dday.label };
       }
       pages[np.id] = np;
       meta.order.push(np.id);
@@ -814,14 +817,26 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
 
   function ddayStep(n, d) { const v = parseInt(n, 10); return isNaN(v) ? n : String(Math.max(0, v + d)); }
   function addPage(mode) {
-    const cur = page(); let np;
+    const cur = page();
+    const nextDate = addDays(cur.date, 1);
+
+    // 다음 날짜의 페이지가 이미 있는지 확인
+    const foundId = Object.keys(pages).find(id => pages[id].date === nextDate);
+    if (foundId && mode !== 'dup') {
+      meta.current = foundId;
+      renderAll();
+      toast(shortDate(nextDate) + ' 플래너로 이동했어요');
+      return;
+    }
+
+    let np;
     if (mode === 'dup') {
-      np = clone(cur); np.id = uid(); np.date = addDays(cur.date, 1);
+      np = clone(cur); np.id = uid(); np.date = nextDate;
       np.tasks.forEach((t) => { t.id = uid(); t.status = 0; });
       np.review = ''; np.goal = ''; np.sample = false;
       np.dday.n = ddayStep(cur.dday.n, -1);
     } else {
-      np = blankPage(addDays(cur.date, 1));
+      np = blankPage(nextDate);
       np.start = cur.start;
       np.dday = { n: ddayStep(cur.dday.n, -1), label: cur.dday.label };
     }
