@@ -129,13 +129,15 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
 .txt { display: block; width: 100%; height: 56px; border: 0; background: transparent; resize: none; overflow: hidden; font-size: 16px; line-height: 22px; padding: 17px 8px; color: var(--ink); }
 .dur { display: flex; align-items: center; justify-content: center; border: 0; background: transparent; padding: 6px 4px; }
 .dur span { display: block; width: 100%; border: 1px dashed var(--rule); border-radius: 8px; background: var(--paper-2); padding: 7px 2px; font-family: var(--font-mono); font-size: 12px; line-height: 1.35; text-align: center; white-space: pre-line; }
+
+/* 타임 인풋 래퍼 및 스타일 추가 (수정됨) */
 .time { display: flex; flex-direction: column; justify-content: center; align-items: center; font-family: var(--font-mono); font-size: 11.5px; line-height: 1.45; white-space: nowrap; padding: 4px 2px; }
 .time .none { color: var(--muted); }
-.time-wrap { display: flex; align-items: center; justify-content: center; width: 100%; }
-.time-edit { width: 100%; border: 1px dashed transparent; background: transparent; font-family: var(--font-mono); font-size: inherit; text-align: center; padding: 2px; color: inherit; appearance: none; }
-.time-edit:hover, .time-edit:focus { border-color: var(--accent); background: var(--paper-2); outline: none; border-radius: 4px; }
-.time-edit::-webkit-calendar-picker-indicator { display: none; }
-.to-time { color: var(--muted); padding-top: 2px; }
+.time-wrap { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; min-height: 22px; }
+.time-txt { font-family: var(--font-mono); border-bottom: 1px dashed var(--rule); padding: 0 2px; color: var(--ink); }
+.time-edit { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.to-time { color: var(--muted); padding-top: 2px; font-size: 0.95em; }
+
 .chk { display: grid; place-items: center; border: 0; background: transparent; padding: 0; }
 .chk i { width: 22px; height: 22px; font-size: 14px; }
 .row[data-s="1"] .chk i { background: var(--ink); color: var(--paper); border-color: var(--ink); }
@@ -259,6 +261,8 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
   <div class="topbar">
     <div class="strip" id="strip" role="group" aria-label="페이지 목록"></div>
     <div class="actions">
+      <!-- 12/24시간제 변경 토글 버튼 추가 -->
+      <button class="btn" id="formatToggle" type="button">12시간제</button>
       <button class="btn" id="newPage" type="button">새 페이지</button>
       <button class="btn" id="dupPage" type="button">이 페이지 복제</button>
       <button class="btn warn" id="delPage" type="button">삭제</button>
@@ -411,7 +415,7 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     return n;
   }
 
-  /* 날짜와 시각 */
+  /* 날짜와 시각 (12/24시간제 지원) */
   const WD = ['일', '월', '화', '수', '목', '금', '토'];
   const ymd = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   const parseYmd = (s) => { const a = s.split('-').map(Number); return new Date(a[0], a[1] - 1, a[2]); };
@@ -419,12 +423,21 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
   const dateKo = (s) => { const d = parseYmd(s); return d.getFullYear() + '년 ' + (d.getMonth() + 1) + '월 ' + d.getDate() + '일 ' + WD[d.getDay()] + '요일'; };
   const shortDate = (s) => { const d = parseYmd(s); return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + WD[d.getDay()]; };
   const parseHM = (s) => { const m = /^(\d{1,2}):(\d{2})/.exec(s || ''); return m ? (+m[1]) * 60 + (+m[2]) : 540; };
+  
   function clock(min) {
     const m = ((min % 1440) + 1440) % 1440, h = Math.floor(m / 60), mm = m % 60;
-    return { ap: h < 12 ? 'AM' : 'PM', t: ((h % 12) || 12) + ':' + String(mm).padStart(2, '0') };
+    const h12 = (h % 12) || 12;
+    return { 
+      ap: h < 12 ? 'AM' : 'PM', 
+      t: h12 + ':' + String(mm).padStart(2, '0'),
+      t24: String(h).padStart(2, '0') + ':' + String(mm).padStart(2, '0')
+    };
   }
   function rangeParts(s, e) {
     const a = clock(s), b = clock(e);
+    if (meta.use24h) {
+      return { from: a.t24, to: '~ ' + b.t24 };
+    }
     return { from: a.ap + ' ' + a.t, to: '~ ' + (a.ap === b.ap ? '' : b.ap + ' ') + b.t };
   }
   function durKo(min) {
@@ -452,10 +465,11 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     { id: 'c-rest', name: '휴식', color: PALETTE[9], count: false },
     { id: 'c-etc', name: '기타', color: PALETTE[7], count: true }
   ];
-  let meta = { cats: [], order: [], current: null };
+  let meta = { cats: [], order: [], current: null, use24h: false };
   let pages = {};
   const page = () => pages[meta.current];
   const catOf = (t) => meta.cats.find((c) => c.id === t.cat) || meta.cats[0];
+  // 할 일에 startTime 속성 추가
   const task = (cat, text, dur, status) => ({ id: uid(), cat: cat, text: text || '', dur: dur == null ? 30 : dur, status: status || 0, startTime: null });
   const blankPage = (date) => ({ id: uid(), date: date, dday: { n: '', label: '' }, start: '09:00', goal: '', review: '', tasks: [], sample: false });
 
@@ -475,13 +489,13 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     return p;
   }
   function seed() {
-    meta = { cats: clone(DEF_CATS), order: [], current: null };
+    meta = { cats: clone(DEF_CATS), order: [], current: null, use24h: false };
     pages = {};
     const p = makeSample();
     pages[p.id] = p; meta.order = [p.id]; meta.current = p.id;
   }
 
-  /* 시각 계산: 앞 일정이 끝난 시각부터 이어서 시작한다. 단, startTime이 있으면 그 시각으로 갱신한다. */
+  /* 시각 계산: 앞 일정이 끝난 시각부터 이어서 시작하되 startTime 고정값이 있으면 갱신한다 */
   function schedule(p) {
     let t = parseHM(p.start);
     return p.tasks.map((k) => { 
@@ -518,7 +532,8 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
   const markPage = (id) => { if (pages[id]) pages[id].u = Date.now(); queue(); };
   const markMeta = () => { meta.u = Date.now(); queue(); };
 
-  const metaRow = (userId) => ({ user_id: userId, doc_id: 'meta', data: { cats: clone(meta.cats), order: meta.order.slice() }, deleted: false, updated_at: meta.u });
+  // use24h 설정 동기화 추가
+  const metaRow = (userId) => ({ user_id: userId, doc_id: 'meta', data: { cats: clone(meta.cats), order: meta.order.slice(), use24h: !!meta.use24h }, deleted: false, updated_at: meta.u });
   const pageRow = (userId, p) => { const d = clone(p); delete d.u; delete d.sample; return { user_id: userId, doc_id: 'p-' + p.id, data: d, deleted: false, updated_at: p.u }; };
 
   function reconcile() {
@@ -529,7 +544,6 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     if (!pages[meta.current]) meta.current = meta.order[0];
   }
 
-  /* 페이지마다 마지막에 고친 쪽이 이긴다. 서버 목록과 비교해 새 것만 주고받는다 */
   async function syncNow() {
     if (!sb || !session) return false;
     if (syncing) { syncAgain = true; return false; }
@@ -546,13 +560,11 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
       const hasRemotePages = Object.keys(remote).some((k) => k.slice(0, 2) === 'p-' && !remote[k].deleted);
       const push = [], pull = [], seen = {};
 
-      // 카테고리와 페이지 순서
       seen.meta = meta.u || 0;
       if (!remote.meta) { if (!meta.u) meta.u = Date.now(); push.push(metaRow(userId)); }
       else if (remote.meta.updated_at < seen.meta) push.push(metaRow(userId));
       else if (remote.meta.updated_at > seen.meta) pull.push('meta');
 
-      // 이 기기에 있는 페이지
       Object.keys(pages).forEach((id) => {
         const p = pages[id], key = 'p-' + id, r = remote[key];
         if (p.sample) return;
@@ -561,7 +573,6 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
         if (!r || r.updated_at < p.u) push.push(pageRow(userId, p));
         else if (r.updated_at > p.u) pull.push(key);
       });
-      // 서버에만 있는 페이지, 그리고 이 기기에서 지운 페이지
       Object.keys(remote).forEach((key) => {
         if (key.slice(0, 2) !== 'p-') return;
         const id = key.slice(2), r = remote[key];
@@ -577,7 +588,6 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
         if (!remote['p-' + id]) push.push({ user_id: userId, doc_id: 'p-' + id, data: null, deleted: true, updated_at: meta.tomb[id] });
       });
 
-      // 받기
       const rows = [];
       for (let i = 0; i < pull.length; i += 40) {
         const r2 = await sb.from('planner_docs').select('doc_id,data,deleted,updated_at').in('doc_id', pull.slice(i, i + 40));
@@ -586,10 +596,11 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
       }
       rows.forEach((r) => {
         if (r.doc_id === 'meta') {
-          if ((meta.u || 0) !== seen.meta) return; // 받는 사이 이 기기에서 고쳤다
+          if ((meta.u || 0) !== seen.meta) return;
           if (r.data) {
             if (Array.isArray(r.data.cats) && r.data.cats.length) meta.cats = r.data.cats;
             if (Array.isArray(r.data.order)) meta.order = r.data.order;
+            if (r.data.use24h !== undefined) meta.use24h = !!r.data.use24h;
           }
           meta.u = r.updated_at; changed = true;
         } else {
@@ -600,14 +611,12 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
         }
       });
 
-      // 보내기
       for (let i = 0; i < push.length; i += 40) {
         const r3 = await sb.from('planner_docs').upsert(push.slice(i, i + 40), { onConflict: 'user_id,doc_id' });
         if (r3.error) throw r3.error;
       }
       push.forEach((row) => { if (row.deleted) delete meta.tomb[row.doc_id.slice(2)]; });
 
-      // 계정에 일정이 있으면 처음 들어 있던 예시 페이지는 치운다
       if (hasRemotePages) Object.keys(pages).forEach((id) => { if (pages[id].sample) { delete pages[id]; changed = true; } });
       reconcile();
       lsSave();
@@ -665,7 +674,7 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
   }
   function startSession() {
     const me = session.user.id, owner = lsGet(LS_OWNER);
-    if (owner && owner !== me) { seed(); lsSave(); } // 다른 계정이 쓰던 일정은 섞지 않는다
+    if (owner && owner !== me) { seed(); lsSave(); }
     lsSet(LS_OWNER, me); lsSet(LS_LOCAL, null);
     hideAuth(); renderAll(); renderAcct(); syncNow();
   }
@@ -760,8 +769,11 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
   }
   function fillPaper() {
     const p = page();
+    const cp = clock(parseHM(p.start));
+    
     $('#dateIn').value = p.date; $('#dateTxt').textContent = dateKo(p.date);
-    $('#startIn').value = p.start; $('#startTxt').textContent = clock(parseHM(p.start)).ap + ' ' + clock(parseHM(p.start)).t;
+    $('#startIn').value = p.start; 
+    $('#startTxt').textContent = meta.use24h ? cp.t24 : cp.ap + ' ' + cp.t;
     $('#goal').value = p.goal; $('#review').value = p.review;
     $('#ddayN').value = p.dday.n; $('#ddayL').value = p.dday.label;
     $('#banner').hidden = !p.sample;
@@ -829,27 +841,27 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
       const cat = $('.cat', row); cat.style.background = c.color; $('.nm', cat).textContent = c.name;
       cat.setAttribute('aria-label', '카테고리: ' + c.name);
       $('.dur span', row).textContent = durCell(t.dur);
+      
       const time = $('.time', row); time.textContent = '';
       if (t.dur) { 
         const sTime = clock(sc[i].s);
         const eTime = clock(sc[i].e);
         
-        const sInput = el('input', { type: 'time', class: 'time-edit', 'aria-label': '시작 시각' });
-        const s24 = String(Math.floor(sc[i].s / 60) % 24).padStart(2, '0') + ':' + String(sc[i].s % 60).padStart(2, '0');
-        sInput.value = s24;
-        
+        // 투명 input 트릭을 사용하여 OS 기본 입력기는 유지하면서 표기는 통일
+        const sInput = el('input', { type: 'time', class: 'time-edit' });
+        sInput.value = sTime.t24;
         sInput.onchange = (e) => {
-          if (e.target.value) {
-            t.startTime = e.target.value;
-          } else {
-            t.startTime = null; 
-          }
-          edit();
-          updateDerived();
+          if (e.target.value) t.startTime = e.target.value;
+          else t.startTime = null; // 값을 지우면 다시 자동계산 됨
+          edit(); updateDerived();
         };
 
-        const fromWrap = el('div', { class: 'time-wrap' }, sInput);
-        const toWrap = el('div', { class: 'time-wrap to-time', text: '~ ' + (sTime.ap === eTime.ap ? '' : eTime.ap + ' ') + eTime.t });
+        const sDisplayStr = meta.use24h ? sTime.t24 : sTime.ap + ' ' + sTime.t;
+        const sDisplay = el('span', { class: 'time-txt', text: sDisplayStr });
+        const fromWrap = el('div', { class: 'time-wrap' }, sDisplay, sInput);
+        
+        const toText = meta.use24h ? '~ ' + eTime.t24 : '~ ' + (sTime.ap === eTime.ap ? '' : eTime.ap + ' ') + eTime.t;
+        const toWrap = el('div', { class: 'time-wrap to-time', text: toText });
         
         time.append(fromWrap, toWrap);
       }
@@ -860,7 +872,8 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
       chk.setAttribute('aria-label', '체크: ' + STATUS[t.status][1]);
     });
     paintGrid(p, sc); updateTotal(p);
-    $('#startTxt').textContent = clock(parseHM(p.start)).ap + ' ' + clock(parseHM(p.start)).t;
+    const cp = clock(parseHM(p.start));
+    $('#startTxt').textContent = meta.use24h ? cp.t24 : cp.ap + ' ' + cp.t;
   }
 
   function autosize(ta) { ta.style.height = '0px'; ta.style.height = Math.max(56, ta.scrollHeight) + 'px'; }
@@ -876,7 +889,9 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     g.append(el('div', { class: 'hd' }));
     for (let i = 0; i < 24; i++) {
       const h = (4 + i) % 24, thick = h === 12 || h === 0;
-      g.append(el('div', { class: 'hh' + (thick ? ' thick' : '') }, String((h % 12) || 12).padStart(2, '0'), el('em', { text: h < 12 ? 'AM' : 'PM' })));
+      const hStr = meta.use24h ? String(h).padStart(2, '0') : String((h % 12) || 12).padStart(2, '0');
+      const ampm = meta.use24h ? '' : (h < 12 ? 'AM' : 'PM');
+      g.append(el('div', { class: 'hh' + (thick ? ' thick' : '') }, hStr, el('em', { text: ampm })));
       for (let j = 0; j < 6; j++) { const c = el('div', { class: thick ? 'thick' : '' }); cells.push(c); g.append(c); }
     }
   }
@@ -923,7 +938,10 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     meta.cats.forEach((c) => box.append(el('span', { class: 'it' }, el('span', { class: 'dot', style: 'background:' + c.color }), c.name)));
     const b = el('button', { class: 'link', type: 'button', text: '카테고리 관리' }); b.onclick = openCatMgr; box.append(b);
   }
-  function renderAll() { renderPages(); fillPaper(); buildRows(); renderLegend(); }
+  function renderAll() { 
+    $('#formatToggle').textContent = meta.use24h ? '24시간제' : '12시간제';
+    renderPages(); fillPaper(); buildGrid(); buildRows(); renderLegend(); 
+  }
 
   /* ---------- 카테고리 메뉴 ---------- */
   let menuAnchor = null;
@@ -1042,6 +1060,11 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
 
   /* ---------- 입력 연결 ---------- */
   function bindPaper() {
+    $('#formatToggle').onclick = () => {
+      meta.use24h = !meta.use24h;
+      markMeta();
+      renderAll();
+    };
     $('#dateIn').addEventListener('change', (e) => {
       if (!e.target.value) { e.target.value = page().date; return; }
       page().date = e.target.value; $('#dateTxt').textContent = dateKo(page().date); edit(); renderPages();
@@ -1107,6 +1130,7 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
         meta.cats.push({ id: String(c.id), name: String(c.name || '새 항목').slice(0, 6), color: /^#[0-9a-f]{6}$/i.test(c.color) ? c.color : PALETTE[9], count: c.count !== false });
       }
     });
+    if (obj.meta && obj.meta.use24h !== undefined) meta.use24h = !!obj.meta.use24h;
     let n = 0;
     Object.keys(obj.pages).forEach((k) => {
       const p = cleanPage(obj.pages[k]); if (!p || pages[p.id]) return;
@@ -1135,11 +1159,12 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
   const saved = lsLoad();
   if (saved && saved.meta && saved.meta.order && saved.meta.order.length && saved.pages) {
     meta = saved.meta; pages = saved.pages;
+    if (meta.use24h === undefined) meta.use24h = false;
     meta.order = meta.order.filter((id) => pages[id]);
     if (!meta.order.length) seed();
     else if (!pages[meta.current]) meta.current = meta.order[0];
   } else seed();
-  buildGrid(); bindPaper(); bindSheet(); bindBackup(); bindAccount(); renderAll(); setStatus('local'); registerSW();
+  bindPaper(); bindSheet(); bindBackup(); bindAccount(); renderAll(); setStatus('local'); registerSW();
   if (cloudConfigured() && !hasSavedSession() && lsGet(LS_LOCAL) !== '1') showAuth();
   initAuth();
 })();
