@@ -131,6 +131,11 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
 .dur span { display: block; width: 100%; border: 1px dashed var(--rule); border-radius: 8px; background: var(--paper-2); padding: 7px 2px; font-family: var(--font-mono); font-size: 12px; line-height: 1.35; text-align: center; white-space: pre-line; }
 .time { display: flex; flex-direction: column; justify-content: center; align-items: center; font-family: var(--font-mono); font-size: 11.5px; line-height: 1.45; white-space: nowrap; padding: 4px 2px; }
 .time .none { color: var(--muted); }
+.time-wrap { display: flex; align-items: center; justify-content: center; width: 100%; }
+.time-edit { width: 100%; border: 1px dashed transparent; background: transparent; font-family: var(--font-mono); font-size: inherit; text-align: center; padding: 2px; color: inherit; appearance: none; }
+.time-edit:hover, .time-edit:focus { border-color: var(--accent); background: var(--paper-2); outline: none; border-radius: 4px; }
+.time-edit::-webkit-calendar-picker-indicator { display: none; }
+.to-time { color: var(--muted); padding-top: 2px; }
 .chk { display: grid; place-items: center; border: 0; background: transparent; padding: 0; }
 .chk i { width: 22px; height: 22px; font-size: 14px; }
 .row[data-s="1"] .chk i { background: var(--ink); color: var(--paper); border-color: var(--ink); }
@@ -451,7 +456,7 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
   let pages = {};
   const page = () => pages[meta.current];
   const catOf = (t) => meta.cats.find((c) => c.id === t.cat) || meta.cats[0];
-  const task = (cat, text, dur, status) => ({ id: uid(), cat: cat, text: text || '', dur: dur == null ? 30 : dur, status: status || 0 });
+  const task = (cat, text, dur, status) => ({ id: uid(), cat: cat, text: text || '', dur: dur == null ? 30 : dur, status: status || 0, startTime: null });
   const blankPage = (date) => ({ id: uid(), date: date, dday: { n: '', label: '' }, start: '09:00', goal: '', review: '', tasks: [], sample: false });
 
   function makeSample() {
@@ -476,10 +481,15 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     pages[p.id] = p; meta.order = [p.id]; meta.current = p.id;
   }
 
-  /* 시각 계산: 앞 일정이 끝난 시각부터 이어서 시작한다 */
+  /* 시각 계산: 앞 일정이 끝난 시각부터 이어서 시작한다. 단, startTime이 있으면 그 시각으로 갱신한다. */
   function schedule(p) {
     let t = parseHM(p.start);
-    return p.tasks.map((k) => { const s = t, e = t + (k.dur || 0); t = e; return { s: s, e: e }; });
+    return p.tasks.map((k) => { 
+      if (k.startTime) { t = parseHM(k.startTime); }
+      const s = t, e = t + (k.dur || 0); 
+      t = e; 
+      return { s: s, e: e }; 
+    });
   }
 
   /* ---------- 저장: 이 기기에 먼저, 로그인하면 계정에도 ---------- */
@@ -820,8 +830,31 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
       cat.setAttribute('aria-label', '카테고리: ' + c.name);
       $('.dur span', row).textContent = durCell(t.dur);
       const time = $('.time', row); time.textContent = '';
-      if (t.dur) { const r = rangeParts(sc[i].s, sc[i].e); time.append(el('span', { text: r.from }), el('span', { text: r.to })); }
+      if (t.dur) { 
+        const sTime = clock(sc[i].s);
+        const eTime = clock(sc[i].e);
+        
+        const sInput = el('input', { type: 'time', class: 'time-edit', 'aria-label': '시작 시각' });
+        const s24 = String(Math.floor(sc[i].s / 60) % 24).padStart(2, '0') + ':' + String(sc[i].s % 60).padStart(2, '0');
+        sInput.value = s24;
+        
+        sInput.onchange = (e) => {
+          if (e.target.value) {
+            t.startTime = e.target.value;
+          } else {
+            t.startTime = null; 
+          }
+          edit();
+          updateDerived();
+        };
+
+        const fromWrap = el('div', { class: 'time-wrap' }, sInput);
+        const toWrap = el('div', { class: 'time-wrap to-time', text: '~ ' + (sTime.ap === eTime.ap ? '' : eTime.ap + ' ') + eTime.t });
+        
+        time.append(fromWrap, toWrap);
+      }
       else time.append(el('span', { class: 'none', text: '—' }));
+      
       row.dataset.s = t.status;
       const chk = $('.chk', row); $('i', chk).textContent = STATUS[t.status][0];
       chk.setAttribute('aria-label', '체크: ' + STATUS[t.status][1]);
@@ -1050,7 +1083,8 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     out.goal = String(p.goal || ''); out.review = String(p.review || '');
     out.tasks = (Array.isArray(p.tasks) ? p.tasks : []).map((t) => ({
       id: String((t && t.id) || uid()), cat: String((t && t.cat) || ''), text: String((t && t.text) || ''),
-      dur: Math.max(0, Math.min(720, Number(t && t.dur) || 0)), status: [0, 1, 2, 3].indexOf(t && t.status) >= 0 ? t.status : 0
+      dur: Math.max(0, Math.min(720, Number(t && t.dur) || 0)), status: [0, 1, 2, 3].indexOf(t && t.status) >= 0 ? t.status : 0,
+      startTime: t && t.startTime ? String(t.startTime) : null
     }));
     return out;
   }
