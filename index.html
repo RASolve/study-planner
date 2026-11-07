@@ -80,7 +80,10 @@ button:disabled { cursor: default; opacity: .4; }
 .pg[aria-current="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .btn { border: 1px solid var(--rule); background: var(--paper); border-radius: 8px; padding: 8px 12px; font-size: 13px; min-height: 38px; }
-.btn.warn[data-armed] { border-color: var(--danger); color: var(--danger); }
+.btn.fmt { min-height: 30px; padding: 4px 11px; font-size: 12px; border-radius: 999px; background: var(--paper-2); }
+.btn.del { background: var(--danger); border-color: var(--danger); color: #fff; font-weight: 600; }
+.btn.del[data-armed] { background: #fff; color: var(--danger); box-shadow: 0 0 0 2px var(--danger); }
+.btn.del:disabled { opacity: .4; }
 .save { margin-left: auto; font-size: 12px; color: var(--muted); }
 .banner { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; background: var(--paper-2); border: 1px dashed var(--rule); padding: 10px 14px; margin-bottom: 14px; font-size: 13px; }
 .banner p { margin: 0; min-width: 0; }
@@ -106,7 +109,8 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
 .dday .lbl { width: 100%; border: 0; background: transparent; font-size: 16px; padding: 0; min-width: 0; color: var(--muted); }
 
 /* 캘린더 드롭다운 및 모듈 UI 스타일 추가 */
-.cal-wrap { position: relative; display: inline-block; margin-bottom: 12px; }
+.daterow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cal-wrap { position: relative; display: inline-block; }
 .cal-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 500; background: var(--paper-2); border: 1px solid var(--rule); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
 .cal-dropdown { position: absolute; top: calc(100% + 4px); left: 0; z-index: 50; background: var(--paper); border: 1.5px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 12px; width: 300px; }
 .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-weight: bold; }
@@ -266,6 +270,7 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
 <div class="wrap" id="app">
   <div class="topbar">
     <!-- 날짜별 캘린더 모듈 인터페이스 -->
+    <div class="daterow">
     <div class="cal-wrap" id="calWrap">
       <button class="cal-btn" id="calToggleBtn" type="button">📅 날짜 선택</button>
       <div class="cal-dropdown" id="calDropdown" hidden>
@@ -280,11 +285,11 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
         <div class="cal-grid" id="calGridDays"></div>
       </div>
     </div>
+    <button class="btn fmt" id="formatToggle" type="button">12시간제</button>
+    </div>
     <div class="actions">
-      <button class="btn" id="formatToggle" type="button">12시간제</button>
-      <button class="btn" id="newPage" type="button">새 페이지</button>
       <button class="btn" id="dupPage" type="button">이 페이지 복제</button>
-      <button class="btn warn" id="delPage" type="button">삭제</button>
+      <button class="btn del" id="delPage" type="button">삭제</button>
       <span class="save" id="saveState" role="status">불러오는 중</span>
     </div>
   </div>
@@ -439,7 +444,7 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
   const addDays = (s, n) => { const d = parseYmd(s); d.setDate(d.getDate() + n); return ymd(d); };
   const dateKo = (s) => { const d = parseYmd(s); return d.getFullYear() + '년 ' + (d.getMonth() + 1) + '월 ' + d.getDate() + '일 ' + WD[d.getDay()] + '요일'; };
   const shortDate = (s) => { const d = parseYmd(s); return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + WD[d.getDay()]; };
-  const parseHM = (s) => { const m = /^(\d{1,2}):(\d{2})/.exec(s || ''); return m ? (+m[1]) * 60 + (+m[2]) : 540; };
+  const parseHM = (s) => { const m = /^(\d{1,2}):(\d{2})/.exec(s || ''); return m ? (+m[1]) * 60 + (+m[2]) : 360; };
   
   function clock(min) {
     const m = ((min % 1440) + 1440) % 1440, h = Math.floor(m / 60), mm = m % 60;
@@ -488,7 +493,7 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
   const page = () => pages[meta.current];
   const catOf = (t) => meta.cats.find((c) => c.id === t.cat) || meta.cats[0];
   const task = (cat, text, dur, status) => ({ id: uid(), cat: cat, text: text || '', dur: dur == null ? 30 : dur, status: status || 0, startTime: null });
-  const blankPage = (date) => ({ id: uid(), date: date, dday: { n: '', label: '' }, start: '09:00', goal: '', review: '', tasks: [], sample: false });
+  const blankPage = (date) => ({ id: uid(), date: date, dday: { n: '', label: '' }, start: '06:00', goal: '', review: '', tasks: [], sample: false });
 
   function makeSample() {
     const p = blankPage(ymd(new Date()));
@@ -1227,7 +1232,6 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     $('#review').addEventListener('input', (e) => { page().review = e.target.value; edit(); });
     $('#ddayN').addEventListener('input', (e) => { e.target.value = e.target.value.replace(/\D/g, ''); page().dday.n = e.target.value; edit(); });
     $('#ddayL').addEventListener('input', (e) => { page().dday.label = e.target.value; edit(); });
-    $('#newPage').onclick = () => addPage('new');
     $('#dupPage').onclick = () => addPage('dup');
     const dp = $('#delPage'); dp.onclick = () => arm(dp, '한 번 더 눌러 삭제', delPage);
     $('#clearSample').onclick = () => { const p = page(); p.tasks = []; p.goal = ''; p.sample = false; markPage(p.id); fillPaper(); buildRows(); };
@@ -1254,7 +1258,7 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     if (!p || typeof p !== 'object' || typeof p.id !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(p.date || '')) return null;
     const out = blankPage(p.date); out.id = p.id;
     out.dday = { n: String((p.dday && p.dday.n) || ''), label: String((p.dday && p.dday.label) || '') };
-    out.start = /^\d{1,2}:\d{2}/.test(p.start || '') ? p.start : '09:00';
+    out.start = /^\d{1,2}:\d{2}/.test(p.start || '') ? p.start : '06:00';
     out.goal = String(p.goal || ''); out.review = String(p.review || '');
     out.tasks = (Array.isArray(p.tasks) ? p.tasks : []).map((t) => ({
       id: String((t && t.id) || uid()), cat: String((t && t.cat) || ''), text: String((t && t.text) || ''),
@@ -1315,6 +1319,23 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     if (!meta.order.length) seed();
     else if (!pages[meta.current]) meta.current = meta.order[0];
   } else seed();
+  // 기존에 PM 4:00으로 저장된 시작 시각은 AM 6:00으로 바꾼다
+  Object.keys(pages).forEach((id) => { if (pages[id] && pages[id].start === '16:00') pages[id].start = '06:00'; });
+  // 처음 열면 오늘 날짜의 플래너를 보여준다(없으면 새로 만든다)
+  (function openToday() {
+    const today = ymd(new Date());
+    let id = meta.order.find((i) => pages[i] && pages[i].date === today);
+    if (!id) {
+      const cur = pages[meta.current], np = blankPage(today);
+      if (cur) {
+        np.start = cur.start;
+        if (cur.dday && cur.date) { const diff = Math.round((parseYmd(today) - parseYmd(cur.date)) / 864e5); np.dday = { n: ddayStep(cur.dday.n, -diff), label: cur.dday.label }; }
+      }
+      pages[np.id] = np; meta.order.push(np.id); id = np.id;
+      if (typeof markPage === 'function') { try { markPage(np.id); markMeta(); } catch (e) {} }
+    }
+    meta.current = id;
+  })();
   bindPaper(); bindSheet(); bindBackup(); bindAccount(); renderAll(); setStatus('local'); registerSW();
   if (cloudConfigured() && !hasSavedSession() && lsGet(LS_LOCAL) !== '1') showAuth();
   initAuth();
