@@ -161,6 +161,12 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
 .row.editing { position: relative; z-index: 5; }
 .acts { display: none; position: absolute; left: 6px; right: 6px; top: calc(100% - 6px); z-index: 6; flex-direction: column; gap: 6px; padding: 6px; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); }
 .row.editing .acts { display: flex; }
+.acts .rps { display: flex; gap: 6px; }
+.acts .rps button { flex: 1; min-width: 0; }
+.acts .rpt button { background: #dce8f0; border-color: #9fbdd0; color: #1f3a4d; }
+.acts .rpt button.on { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.acts .mv:disabled { opacity: .35; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .acts .rpt button { background: #2b3f4c; border-color: #4d6a7d; color: #dbe9f2; } :root:not([data-theme="light"]) .acts .rpt button.on { background: var(--ink); color: var(--paper); border-color: var(--ink); } }
 .acts button { height: 34px; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper); color: var(--ink); font-size: 13px; padding: 0; }
 .acts button.rm { color: var(--danger); }
 .acts button.on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
@@ -382,8 +388,6 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     </div>
     <button class="go" id="shDone" type="button">확인</button>
     <div class="sh-tools">
-      <button type="button" id="shUp">순서 앞으로</button>
-      <button type="button" id="shDown">순서 뒤로</button>
       <button type="button" id="shDel">삭제</button>
     </div>
   </div>
@@ -964,11 +968,15 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     chk.onclick = () => { t.status = (t.status + 1) % 4; edit(); updateDerived(); };
     const rm = el('button', { class: 'rm', type: 'button', 'aria-label': '이 할 일 삭제', text: '이 할 일 삭제' });
     rm.onclick = () => removeTask(t.id);
-    const rpD = el('button', { class: 'rp', type: 'button', text: '매일 반복' });
-    const rpW = el('button', { class: 'rp', type: 'button', text: '매주 반복' });
+    const rpD = el('button', { class: 'rp', type: 'button', text: '매일' });
+    const rpW = el('button', { class: 'rp', type: 'button', text: '매주' });
     rpD.onclick = () => setRepeat(t, 'daily');
     rpW.onclick = () => setRepeat(t, 'weekly');
-    const acts = el('div', { class: 'acts' }, rm, rpD, rpW);
+    const mvU = el('button', { class: 'mv', type: 'button', 'aria-label': '위로 옮기기', text: '↑' });
+    const mvD = el('button', { class: 'mv', type: 'button', 'aria-label': '아래로 옮기기', text: '↓' });
+    mvU.onclick = () => moveRow(t.id, -1);
+    mvD.onclick = () => moveRow(t.id, 1);
+    const acts = el('div', { class: 'acts' }, el('div', { class: 'rps mvs' }, mvU, mvD), el('div', { class: 'rps rpt' }, rpD, rpW), rm);
     acts.dataset.tid = t.id;
     const wrap = el('div', { class: 'tx' }, txt, acts);
     const row = el('div', { class: 'row trow', 'data-id': t.id }, cat, wrap, dur, time, chk);
@@ -984,6 +992,14 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     actPress = !!(e.target.closest && e.target.closest('.acts'));
     if (!actPress && !(e.target.closest && e.target.closest('.row.editing .txt'))) $$('#rows .row.editing').forEach((r) => r.classList.remove('editing'));
   }, true);
+  function moveRow(id, d) {
+    const p = page(), i = p.tasks.findIndex((t) => t.id === id), j = i + d;
+    if (i < 0 || j < 0 || j >= p.tasks.length) return;
+    const tmp = p.tasks[i]; p.tasks[i] = p.tasks[j]; p.tasks[j] = tmp;
+    edit(); buildRows();
+    const ta = $('#rows .row[data-id="' + id + '"] .txt');
+    if (ta) { actPress = false; ta.focus(); ta.scrollIntoView({ block: 'nearest' }); }
+  }
   function closeActs() { actPress = false; $$('#rows .row.editing').forEach((r) => r.classList.remove('editing')); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); }
 
   // 반복: meta.repeats 에 규칙을 저장하고, 해당 날짜의 페이지를 열 때 같은 시각에 자동으로 넣어 둔다
@@ -1048,7 +1064,8 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
       const t = p.tasks[i]; if (!t) return;
       const c = catOf(t);
       const rr = t.rid && (meta.repeats || []).find((x) => x.id === t.rid);
-      $$('.rp', row).forEach((b, j) => { const on = !!rr && rr.mode === (j ? 'weekly' : 'daily'); b.classList.toggle('on', on); b.textContent = (j ? '매주 반복' : '매일 반복') + (on ? ' ✓' : ''); });
+      $$('.rp', row).forEach((b, j) => { const on = !!rr && rr.mode === (j ? 'weekly' : 'daily'); b.classList.toggle('on', on); b.textContent = j ? '매주' : '매일'; });
+      const mv = $$('.mv', row); if (mv.length) { mv[0].disabled = i === 0; mv[1].disabled = i === p.tasks.length - 1; }
       const cat = $('.cat', row); cat.style.background = c.color; $('.nm', cat).textContent = c.name;
       cat.setAttribute('aria-label', '카테고리: ' + c.name);
       $('.dur span', row).textContent = durCell(t.dur);
@@ -1228,13 +1245,6 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     if (t.dur) { const r = rangeParts(sc.s, sc.e); $('#shRange').textContent = r.from + ' ' + r.to; } else $('#shRange').textContent = '';
     $('#pillFill').style.height = (Math.min(t.dur, 240) / 240 * 100) + '%';
     const pill = $('#pill'); pill.setAttribute('aria-valuenow', Math.min(t.dur, 240)); pill.setAttribute('aria-valuetext', durKo(t.dur));
-    $('#shUp').disabled = i === 0; $('#shDown').disabled = i === p.tasks.length - 1;
-  }
-  function moveTask(d) {
-    const p = page(), i = p.tasks.findIndex((t) => t.id === sheetId), j = i + d;
-    if (i < 0 || j < 0 || j >= p.tasks.length) return;
-    const tmp = p.tasks[i]; p.tasks[i] = p.tasks[j]; p.tasks[j] = tmp;
-    edit(); buildRows(); updateSheet();
   }
   function bindSheet() {
     const pill = $('#pill'); let drag = false;
@@ -1253,8 +1263,6 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     $$('#sheet [data-step]').forEach((b) => { b.onclick = () => { const t = sheetTask(); if (t) setDur(t.dur + Number(b.dataset.step)); }; });
     $$('#sheet [data-set]').forEach((b) => { b.onclick = () => setDur(Number(b.dataset.set)); });
     $('#shDone').onclick = closeSheet;
-    $('#shUp').onclick = () => moveTask(-1);
-    $('#shDown').onclick = () => moveTask(1);
     $('#shDel').onclick = () => { const id = sheetId; sheetId = null; $('#sheet').hidden = true; $('#app').inert = false; removeTask(id); };
     $('#sheet').addEventListener('pointerdown', (e) => { if (e.target === $('#sheet')) closeSheet(); });
   }
