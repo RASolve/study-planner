@@ -148,6 +148,8 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
 .time .none { color: var(--muted); }
 .time-wrap { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; min-height: 22px; }
 .time-txt { font-family: var(--font-mono); border-bottom: 1px dashed var(--rule); padding: 0 2px; color: var(--ink); }
+.time-txt.pinned { border-bottom-style: solid; border-bottom-color: #4f86a8; color: #2f6f9b; }
+.time-txt.ov { color: var(--danger); border-bottom-color: var(--danger); }
 .time-edit { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 .to-time { color: var(--muted); padding-top: 2px; font-size: 0.95em; }
 
@@ -166,6 +168,8 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
 .acts .rpt button { background: #dce8f0; border-color: #9fbdd0; color: #1f3a4d; }
 .acts .rpt button.on { background: var(--ink); border-color: var(--ink); color: var(--paper); }
 .acts .mv:disabled { opacity: .35; }
+.acts button[hidden] { display: none; }
+.acts .auto { color: #2f6f9b; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .acts .rpt button { background: #2b3f4c; border-color: #4d6a7d; color: #dbe9f2; } :root:not([data-theme="light"]) .acts .rpt button.on { background: var(--ink); color: var(--paper); border-color: var(--ink); } }
 .acts button { height: 34px; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper); color: var(--ink); font-size: 13px; padding: 0; }
 .acts button.rm { color: var(--danger); }
@@ -527,12 +531,20 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
   }
 
   function schedule(p) {
-    let t = parseHM(p.start);
-    return p.tasks.map((k) => { 
-      if (k.startTime) { t = parseHM(k.startTime); }
-      const s = t, e = t + (k.dur || 0); 
-      t = e; 
-      return { s: s, e: e }; 
+    const S = parseHM(p.start);
+    let t = S;
+    return p.tasks.map((k) => {
+      const prevEnd = t, pinned = !!k.startTime;
+      if (pinned) {
+        // 직접 정한 시각: 하루 시작 이후로 맞추고, 앞 일정이 자정을 넘겼다면 같은 흐름의 다음 날로 본다
+        let a = parseHM(k.startTime);
+        while (a < S) a += 1440;
+        while (a < prevEnd - 720) a += 1440;
+        t = a;
+      }
+      const s = t, e = t + (k.dur || 0);
+      t = e;
+      return { s: s, e: e, pinned: pinned, ov: pinned && s < prevEnd };
     });
   }
 
@@ -976,7 +988,9 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     const mvD = el('button', { class: 'mv', type: 'button', 'aria-label': '아래로 옮기기', text: '↓' });
     mvU.onclick = () => moveRow(t.id, -1);
     mvD.onclick = () => moveRow(t.id, 1);
-    const acts = el('div', { class: 'acts' }, el('div', { class: 'rps mvs' }, mvU, mvD), el('div', { class: 'rps rpt' }, rpD, rpW), rm);
+    const auto = el('button', { class: 'auto', type: 'button', text: '시간 자동' });
+    auto.onclick = () => { t.startTime = null; edit(); updateDerived(); };
+    const acts = el('div', { class: 'acts' }, el('div', { class: 'rps mvs' }, mvU, mvD), el('div', { class: 'rps rpt' }, rpD, rpW), auto, rm);
     acts.dataset.tid = t.id;
     const wrap = el('div', { class: 'tx' }, txt, acts);
     const row = el('div', { class: 'row trow', 'data-id': t.id }, cat, wrap, dur, time, chk);
@@ -994,7 +1008,10 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     const p = page(), i = p.tasks.findIndex((t) => t.id === id), j = i + d;
     if (i < 0 || j < 0 || j >= p.tasks.length) return;
     const tmp = p.tasks[i]; p.tasks[i] = p.tasks[j]; p.tasks[j] = tmp;
+    const hadPin = !!(p.tasks[i].startTime || p.tasks[j].startTime);
+    p.tasks[i].startTime = null; p.tasks[j].startTime = null; // 순서가 바뀌면 시각도 새 자리에 맞춰 자동으로 이어붙인다
     edit(); buildRows();
+    if (hadPin) toast('순서를 바꿔서 직접 정한 시각을 풀고 자동으로 이어붙였어요');
     const ta = $('#rows .row[data-id="' + id + '"] .txt');
     if (ta) { actPress = false; ta.focus(); ta.scrollIntoView({ block: 'nearest' }); }
   }
@@ -1063,6 +1080,7 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
       const c = catOf(t);
       const rr = t.rid && (meta.repeats || []).find((x) => x.id === t.rid);
       $$('.rp', row).forEach((b, j) => { const on = !!rr && rr.mode === (j ? 'weekly' : 'daily'); b.classList.toggle('on', on); b.textContent = j ? '매주' : '매일'; });
+      const au = $('.auto', row); if (au) au.hidden = !sc[i].pinned;
       const mv = $$('.mv', row); if (mv.length) { mv[0].disabled = i === 0; mv[1].disabled = i === p.tasks.length - 1; }
       const cat = $('.cat', row); cat.style.background = c.color; $('.nm', cat).textContent = c.name;
       cat.setAttribute('aria-label', '카테고리: ' + c.name);
@@ -1082,7 +1100,7 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
         };
 
         const sDisplayStr = meta.use24h ? sTime.t24 : sTime.ap + ' ' + sTime.t;
-        const sDisplay = el('span', { class: 'time-txt', text: sDisplayStr });
+        const sDisplay = el('span', { class: 'time-txt' + (sc[i].pinned ? ' pinned' : '') + (sc[i].ov ? ' ov' : ''), text: sDisplayStr });
         const fromWrap = el('div', { class: 'time-wrap' }, sDisplay, sInput);
         
         const toText = meta.use24h ? '~ ' + eTime.t24 : '~ ' + (sTime.ap === eTime.ap ? '' : eTime.ap + ' ') + eTime.t;
