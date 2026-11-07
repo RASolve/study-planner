@@ -388,7 +388,7 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     </div>
     <button class="go" id="shDone" type="button">확인</button>
     <div class="sh-tools">
-      <button type="button" id="shDel">삭제</button>
+      <button type="button" id="shCancel">취소</button>
     </div>
   </div>
 </div>
@@ -981,16 +981,14 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     const wrap = el('div', { class: 'tx' }, txt, acts);
     const row = el('div', { class: 'row trow', 'data-id': t.id }, cat, wrap, dur, time, chk);
     txt.addEventListener('focus', () => { row.classList.add('editing'); autosize(txt); });
-    txt.addEventListener('blur', () => {
-      if (actPress) return; // 아래 버튼을 누르는 중이면 닫지 않는다
-      row.classList.remove('editing'); autosize(txt);
-    });
+    txt.addEventListener('blur', () => autosize(txt)); // 메뉴는 스크롤해도 유지, 다른 곳을 '탭'할 때 닫힌다
     return row;
   }
   let actPress = false;
-  document.addEventListener('pointerdown', (e) => {
-    actPress = !!(e.target.closest && e.target.closest('.acts'));
-    if (!actPress && !(e.target.closest && e.target.closest('.row.editing .txt'))) $$('#rows .row.editing').forEach((r) => r.classList.remove('editing'));
+  document.addEventListener('pointerdown', (e) => { actPress = !!(e.target.closest && e.target.closest('.acts')); }, true);
+  document.addEventListener('click', (e) => {
+    const inRow = e.target.closest && e.target.closest('.row.editing');
+    $$('#rows .row.editing').forEach((r) => { if (r !== inRow) r.classList.remove('editing'); });
   }, true);
   function moveRow(id, d) {
     const p = page(), i = p.tasks.findIndex((t) => t.id === id), j = i + d;
@@ -1224,7 +1222,8 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
 
   let sheetId = null;
   const sheetTask = () => page().tasks.find((t) => t.id === sheetId);
-  function openSheet(id) { sheetId = id; $('#sheet').hidden = false; $('#app').inert = true; updateSheet(); $('#pill').focus(); }
+  let sheetOrig = 0;
+  function openSheet(id) { sheetId = id; { const t0 = sheetTask(); sheetOrig = t0 ? t0.dur : 0; } $('#sheet').hidden = false; $('#app').inert = true; updateSheet(); $('#pill').focus(); }
   function closeSheet() {
     const id = sheetId; sheetId = null; $('#sheet').hidden = true; $('#app').inert = false;
     const b = $('.row[data-id="' + id + '"] .dur'); if (b) b.focus();
@@ -1263,7 +1262,11 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     $$('#sheet [data-step]').forEach((b) => { b.onclick = () => { const t = sheetTask(); if (t) setDur(t.dur + Number(b.dataset.step)); }; });
     $$('#sheet [data-set]').forEach((b) => { b.onclick = () => setDur(Number(b.dataset.set)); });
     $('#shDone').onclick = closeSheet;
-    $('#shDel').onclick = () => { const id = sheetId; sheetId = null; $('#sheet').hidden = true; $('#app').inert = false; removeTask(id); };
+    $('#shCancel').onclick = () => {
+      const t = sheetTask();
+      if (t && t.dur !== sheetOrig) { t.dur = sheetOrig; edit(); updateDerived(); }
+      closeSheet();
+    };
     $('#sheet').addEventListener('pointerdown', (e) => { if (e.target === $('#sheet')) closeSheet(); });
   }
 
