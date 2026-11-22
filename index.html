@@ -98,6 +98,8 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
 .date { position: relative; display: inline-flex; align-self: flex-start; font-size: 17px; font-weight: 500; min-height: 40px; align-items: center; border-bottom: 1px dashed var(--rule); }
 .date input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 .date:focus-within, .start:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.startrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.btn.nowbtn { min-height: 30px; padding: 4px 12px; font-size: 12px; border-radius: 999px; background: var(--paper-2); }
 .start { position: relative; display: inline-flex; align-self: flex-start; align-items: baseline; gap: 8px; min-height: 36px; font-size: 14px; color: var(--muted); }
 .start b { font-family: var(--font-mono); font-weight: 500; font-size: 15px; color: var(--ink); border-bottom: 1px dashed var(--rule); }
 .start input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
@@ -320,7 +322,10 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
     <section class="meta">
       <div class="meta-l">
         <label class="date"><span id="dateTxt"></span><input type="date" id="dateIn" aria-label="날짜"></label>
-        <label class="start"><span>시작</span><b id="startTxt"></b><input type="time" id="startIn" aria-label="하루 시작 시각"></label>
+        <div class="startrow">
+          <label class="start"><span>시작</span><b id="startTxt"></b><input type="time" id="startIn" aria-label="하루 시작 시각"></label>
+          <button class="btn nowbtn" id="startNow" type="button">지금 시작</button>
+        </div>
         <textarea class="goal" id="goal" rows="2" placeholder="오늘의 목표" aria-label="오늘의 목표"></textarea>
       </div>
       <div class="dday">
@@ -1400,6 +1405,14 @@ h1 small { font-size: 15px; font-weight: 400; margin-left: 6px; color: var(--mut
       if (!e.target.value) { e.target.value = page().date; return; }
       page().date = e.target.value; $('#dateTxt').textContent = dateKo(page().date); edit(); renderPages();
     });
+    // 지금 시작: 지금 시각 이후 가장 가까운 10분 단위(0,10,20,30,40,50분)로 시작 시각을 맞춘다
+    $('#startNow').onclick = () => {
+      const d = new Date();
+      const m = Math.ceil((d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60) / 10) * 10 % 1440;
+      const hm = String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+      page().start = hm; $('#startIn').value = hm; edit(); updateDerived();
+      const c = clock(m); toast('시작 시각을 ' + (meta.use24h ? c.t24 : c.ap + ' ' + c.t) + '으로 바꿨어요');
+    };
     $('#startIn').addEventListener('input', (e) => { if (!e.target.value) return; page().start = e.target.value; edit(); updateDerived(); });
     $('#goal').addEventListener('input', (e) => { page().goal = e.target.value; edit(); });
     $('#review').addEventListener('input', (e) => { page().review = e.target.value; edit(); });
